@@ -1,0 +1,61 @@
+# Task: Build Cybersecurity Job Platform (CyberLink)
+
+- [x] Initialized Project Structure
+    - [x] Setup React + Vite frontend
+    - [x] Setup Express backend structure
+    - [x] Configure Tailwind CSS
+- [x] Database & Backend Setup
+    - [x] Initialize SQLite database
+    - [x] Create User and Recruiter tables
+    - [x] Create Jobs and Applications tables
+    - [x] Implement Auth API (Signup, Login)
+- [x] Frontend: Authentication
+    - [x] Create Login/Signup pages
+    - [x] Implement Role-based redirection
+- [x] Job Seeker Dashboard
+    - [x] Profile Management (Edit details, Upload photo)
+    - [x] Job Listing & Filtering
+    - [x] Study Corner (Mock data for topics/certs)
+- [x] Recruiter Dashboard
+    - [x] Job Posting Interface
+    - [x] Application Management (Applicant list, Status updates)
+- [x] Integration & Refinement
+    - [x] Connect Frontend to Backend API
+    - [x] Polish UI/UX (Styles, Animations)
+    - [x] Verify core flows (Signup -> Post Job -> Apply -> Review)
+- [x] Enhancements
+    - [x] Rename app to 'Cybersparkz'
+    - [x] Update Login Page (Role selection, Captcha, Forgot Password)
+    - [x] Update Branding (Logo)
+    - [x] Username Auth & Strong Password
+- [x] Job Seeker Advanced Features
+    - [x] Profile: Photo Upload & Edit Details
+    - [x] Settings: Dark/Light Mode & Privacy
+    - [x] Study Corner: Case Studies, Video Content
+    - [x] Study Corner: Quizzes (Randomized Options, 75% Pass capability)
+    - [x] Study Corner: E-Certificate Generation
+    - [x] Study Corner: Download Certificate as PDF (Fixed oklch color issue)
+    - [x] 2FA Support (Backend + UI)
+    - [x] Profile: Remove Photo Capability
+    - [x] Session Timeout: 20 mins with 2 min warning
+    - [x] Enhanced Job Application Flow (Form, File Upload, Preview)
+- [x] Recruiter Dashboard Enhancements
+    - [x] Profile Editing (Edit Mode Toggle, Photo Upload/Remove)
+    - [x] Session Timeout & Dark Mode
+    - [x] Application Management: Shortlist, Reject, Interview Scheduling
+    - [x] User Dashboard: View Application Status & Interview Schedule
+- [x] Final Polish
+    - [x] Update Recruiter Logo (Image + Text)
+    - [x] Fix Sidebar Dark Mode
+    - [x] Remove $ from Salary Input
+    - [x] Fix Interview Scheduling Schema
+    - [x] Show "Applied" Status on Job Cards
+    - [x] Enhance Resume Upload & Preview
+    - [x] Enhance Resume Upload & Preview
+    - [x] Enable Profile Photo Upload/Delete
+    - [x] Design Landing Page (Welcome Screen)
+    - [x] Remove Tagline from Landing Page
+    - [x] Update Landing Page Logo
+    - [x] Update Landing Page Logo
+    - [x] Animate Landing Page Design
+    - [x] Responsive Design Polish (Mobile/Tablet/Desktop)
