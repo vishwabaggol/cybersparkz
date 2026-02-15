@@ -7,6 +7,7 @@ const db = require('./db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +61,46 @@ const authenticateToken = (req, res, next) => {
 
 const { authenticator } = require('otplib');
 const qrcode = require('qrcode');
+
+// Email Configuration
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
+// Function to send interview notification email
+const sendInterviewEmail = async (to, applicantName, jobTitle, interviewDate, notes) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER || 'your-email@gmail.com',
+        to: to,
+        subject: `Interview Scheduled - ${jobTitle}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4F46E5;">Interview Scheduled!</h2>
+                <p>Dear ${applicantName},</p>
+                <p>Congratulations! Your interview has been scheduled for the position of <strong>${jobTitle}</strong>.</p>
+                <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Interview Date & Time:</strong><br/>${new Date(interviewDate).toLocaleString()}</p>
+                    ${notes ? `<p><strong>Additional Notes:</strong><br/>${notes}</p>` : ''}
+                </div>
+                <p>Please be prepared and join on time. Good luck!</p>
+                <p>Best regards,<br/>CyberSparkz Team</p>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Interview email sent to:', to);
+        return true;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        return false;
+    }
+};
 
 // --- Auth Routes ---
 
@@ -226,7 +267,7 @@ app.post('/api/auth/2fa/disable', authenticateToken, async (req, res) => {
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-    const user = db.prepare('SELECT id, name, email, role, is_two_factor_enabled FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, name, email, role, is_two_factor_enabled, language FROM users WHERE id = ?').get(req.user.id);
     if (!user) return res.sendStatus(404);
 
     if (user.role === 'recruiter') {
@@ -244,10 +285,14 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
     try {
         if (req.user.role === 'user') {
             db.prepare(`
-                UPDATE profiles 
-                SET bio = ?, skills = ?, experience_level = ?, photo_url = ?
-                WHERE user_id = ?
-            `).run(bio, skills, experience_level, photo_url, req.user.id);
+                INSERT INTO profiles (user_id, bio, skills, experience_level, photo_url)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                bio = excluded.bio,
+                skills = excluded.skills,
+                experience_level = excluded.experience_level,
+                photo_url = excluded.photo_url
+            `).run(req.user.id, bio, skills, experience_level, photo_url);
         } else if (req.user.role === 'recruiter') {
             // Recruiters might have different fields, but if they share some, we update them here or ignore
             // For now, only job seekers have the 'profiles' table with these fields
@@ -287,6 +332,21 @@ app.put('/api/recruiters/profile', authenticateToken, (req, res) => {
     }
 });
 
+app.put('/api/settings', authenticateToken, (req, res) => {
+    const { language } = req.body;
+
+    try {
+        if (language) {
+            db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, req.user.id);
+        }
+
+        res.json({ success: true, message: 'Settings updated successfully' });
+    } catch (error) {
+        console.error("Error updating settings:", error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
 // --- Job Routes ---
 
 app.get('/api/jobs', (req, res) => {
@@ -319,27 +379,7 @@ app.post('/api/jobs', authenticateToken, (req, res) => {
     }
 });
 
-// Update User Profile
-app.put('/api/users/profile', authenticateToken, (req, res) => {
-    const { name, bio, skills, experience_level, photo_url } = req.body;
-    const userId = req.user.id;
 
-    try {
-        const update = db.prepare(`
-            UPDATE users 
-            SET name = ?, bio = ?, skills = ?, experience_level = ?, photo_url = ?
-            WHERE id = ?
-        `);
-        update.run(name, bio, skills, experience_level, photo_url, userId);
-
-        // Return updated user data
-        const updatedUser = db.prepare('SELECT id, name, email, role, bio, skills, experience_level, photo_url FROM users WHERE id = ?').get(userId);
-        res.json(updatedUser);
-    } catch (error) {
-        console.error('Error updating profile', error);
-        res.status(500).json({ error: 'Failed to update profile' });
-    }
-});
 
 // --- Application Routes ---
 
@@ -353,7 +393,7 @@ app.post('/api/apply', authenticateToken, upload.single('resume'), (req, res) =>
         return res.status(400).json({ error: 'Resume (PDF) is required' });
     }
 
-    const { job_id, email, contact_number, alt_contact_number } = req.body;
+    const { job_id, email, contact_number, alt_contact_number, full_name } = req.body;
     const resume_url = `/uploads/${req.file.filename}`;
 
     try {
@@ -363,10 +403,10 @@ app.post('/api/apply', authenticateToken, upload.single('resume'), (req, res) =>
         }
 
         const insertApp = db.prepare(`
-            INSERT INTO applications (job_id, user_id, email, contact_number, alt_contact_number, resume_url) 
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO applications (job_id, user_id, email, contact_number, alt_contact_number, resume_url, full_name) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
-        insertApp.run(job_id, req.user.id, email, contact_number, alt_contact_number, resume_url);
+        insertApp.run(job_id, req.user.id, email, contact_number, alt_contact_number, resume_url, full_name);
 
         res.json({ success: true, message: 'Applied successfully' });
     } catch (error) {
@@ -382,7 +422,7 @@ app.get('/api/user/applications', authenticateToken, (req, res) => {
 
     try {
         const applications = db.prepare(`
-            SELECT a.id, a.status, a.applied_at, a.interview_date, a.interview_notes,
+            SELECT a.id, a.status, a.applied_at, a.interview_date, a.interview_notes, a.resume_url,
                    j.title as job_title, r.company_name
             FROM applications a
             JOIN jobs j ON a.job_id = j.id
@@ -390,7 +430,14 @@ app.get('/api/user/applications', authenticateToken, (req, res) => {
             WHERE a.user_id = ?
             ORDER BY a.applied_at DESC
         `).all(req.user.id);
-        res.json(applications);
+
+        // Convert relative resume URLs to absolute URLs
+        const applicationsWithFullUrls = applications.map(app => ({
+            ...app,
+            resume_url: app.resume_url ? `http://localhost:3000${app.resume_url}` : null
+        }));
+
+        res.json(applicationsWithFullUrls);
     } catch (error) {
         console.error('Error fetching user applications', error);
         res.status(500).json({ error: 'Failed to fetch applications' });
@@ -403,7 +450,7 @@ app.get('/api/recruiter/applications', authenticateToken, (req, res) => {
     }
 
     const applications = db.prepare(`
-        SELECT a.id, a.status, a.applied_at, 
+        SELECT a.id, a.status, a.applied_at, a.resume_url, a.contact_number, a.alt_contact_number, a.email, a.full_name,
                u.name as applicant_name, u.email as applicant_email,
                j.title as job_title
         FROM applications a
@@ -412,7 +459,13 @@ app.get('/api/recruiter/applications', authenticateToken, (req, res) => {
         WHERE j.recruiter_id = ?
     `).all(req.user.id);
 
-    res.json(applications);
+    // Convert relative resume URLs to absolute URLs
+    const applicationsWithFullUrls = applications.map(app => ({
+        ...app,
+        resume_url: app.resume_url ? `http://localhost:3000${app.resume_url}` : null
+    }));
+
+    res.json(applicationsWithFullUrls);
 });
 
 app.patch('/api/applications/:id/status', authenticateToken, (req, res) => {
@@ -430,25 +483,48 @@ app.patch('/api/applications/:id/status', authenticateToken, (req, res) => {
     }
 });
 
-app.post('/api/applications/:id/schedule', authenticateToken, (req, res) => {
+app.post('/api/applications/:id/schedule', authenticateToken, async (req, res) => {
     if (req.user.role !== 'recruiter') return res.sendStatus(403);
 
     const { id } = req.params;
     const { interview_date, interview_notes } = req.body;
 
     try {
+        // Get application details with user email and job title
+        const application = db.prepare(`
+            SELECT a.*, u.email as applicant_email, u.name as applicant_name, j.title as job_title
+            FROM applications a
+            JOIN users u ON a.user_id = u.id
+            JOIN jobs j ON a.job_id = j.id
+            WHERE a.id = ?
+        `).get(id);
+
+        if (!application) {
+            return res.status(404).json({ error: 'Application not found' });
+        }
+
+        // Update application with interview details and set status to interview_scheduled
         db.prepare(`
             UPDATE applications 
             SET status = 'interview_scheduled', interview_date = ?, interview_notes = ? 
             WHERE id = ?
         `).run(interview_date, interview_notes, id);
-        res.json({ success: true });
+
+        // Send email notification
+        await sendInterviewEmail(
+            application.applicant_email,
+            application.applicant_name,
+            application.job_title,
+            interview_date,
+            interview_notes
+        );
+
+        res.json({ success: true, message: 'Interview scheduled and notification sent' });
     } catch (error) {
-        console.error('Error scheduling interview', error);
+        console.error('Error scheduling interview:', error);
         res.status(500).json({ error: 'Failed to schedule interview' });
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

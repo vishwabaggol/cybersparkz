@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import html2canvas from 'html2canvas';
+import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LogOut, User, BookOpen, Briefcase, Settings, Search, Filter, Award, CheckCircle, FileText, Calendar, Upload, Menu, X } from 'lucide-react';
+import { LogOut, User, BookOpen, Briefcase, Settings, Search, Award, CheckCircle, FileText, Calendar, Upload, Menu, X, Sun, Moon, Bell } from 'lucide-react';
 
 
 import JobCard from '../components/JobCard';
 import { studyModules } from '../data/studyModules';
 import { useNavigate } from 'react-router-dom';
+import landingLogo from '../assets/landing-logo.jpg';
 
 const DashboardUser = () => {
     const { user, logout, token, setup2FA, verify2FA, disable2FA } = useAuth();
@@ -20,7 +20,7 @@ const DashboardUser = () => {
     const [jobs, setJobs] = useState<any[]>([]);
     const [userApplications, setUserApplications] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterLevel, setFilterLevel] = useState('All');
+    const [experienceFilter, setExperienceFilter] = useState('All');
 
     // Profile State
     const [profile, setProfile] = useState({
@@ -43,6 +43,7 @@ const DashboardUser = () => {
                 experience_level: user.experience_level || '',
                 photo_url: user.photo_url || ''
             });
+            setLanguage(user.language || 'English (India)');
         }
     }, [user]);
 
@@ -50,12 +51,13 @@ const DashboardUser = () => {
 
 
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [language, setLanguage] = useState('English (India)');
 
     // Study State
     const [completedTopics, setCompletedTopics] = useState<number[]>([]);
 
     // Session Timer
-    const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes session
+    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes session
 
     // 2FA State
     const [showTwoFAModal, setShowTwoFAModal] = useState(false);
@@ -67,10 +69,13 @@ const DashboardUser = () => {
     const [appStep, setAppStep] = useState(1);
     const [appForm, setAppForm] = useState({
         email: '',
+        full_name: '',
         contact_number: '',
         alt_contact_number: '',
         resume: null as File | null
     });
+    const [interviewNotifications, setInterviewNotifications] = useState<any[]>([]);
+    const [showInterviewAlert, setShowInterviewAlert] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -110,6 +115,31 @@ const DashboardUser = () => {
         }
     }, [activeTab]);
 
+    // Check for interview notifications on load
+    useEffect(() => {
+        checkInterviewNotifications();
+    }, []);
+
+    const checkInterviewNotifications = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/user/applications', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const applications = await response.json();
+                const scheduledInterviews = applications.filter(
+                    (app: any) => app.status === 'interview_scheduled' && app.interview_date
+                );
+                if (scheduledInterviews.length > 0) {
+                    setInterviewNotifications(scheduledInterviews);
+                    setShowInterviewAlert(true);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking interview notifications:', error);
+        }
+    };
+
     const fetchUserApplications = async () => {
         try {
             const response = await fetch('http://localhost:3000/api/user/applications', {
@@ -137,6 +167,7 @@ const DashboardUser = () => {
         setAppStep(1);
         setAppForm({
             email: user?.email || '',
+            full_name: user?.name || '',
             contact_number: '',
             alt_contact_number: '',
             resume: null
@@ -164,6 +195,7 @@ const DashboardUser = () => {
         const formData = new FormData();
         formData.append('job_id', applicationJob.id);
         formData.append('email', appForm.email);
+        formData.append('full_name', appForm.full_name);
         formData.append('contact_number', appForm.contact_number);
         formData.append('alt_contact_number', appForm.alt_contact_number);
         if (appForm.resume) {
@@ -194,7 +226,7 @@ const DashboardUser = () => {
     };
 
     const processData = () => {
-        if (!appForm.email || !appForm.contact_number || !appForm.resume) {
+        if (!appForm.email || !appForm.full_name || !appForm.contact_number || !appForm.resume) {
             alert('Please fill all required fields and upload a resume.');
             return false;
         }
@@ -204,8 +236,19 @@ const DashboardUser = () => {
     const filteredJobs = jobs.filter(job => {
         const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             job.company_name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = filterLevel === 'All' || job.experience_level === filterLevel;
-        return matchesSearch && matchesFilter;
+
+        let matchesExperience = true;
+        if (experienceFilter !== 'All') {
+            if (experienceFilter === 'Freshers') {
+                matchesExperience = job.experience_level === 'Entry Level';
+            } else if (experienceFilter === '1-5 Years') {
+                matchesExperience = job.experience_level === 'Mid Level';
+            } else if (experienceFilter === '5+ Years') {
+                matchesExperience = job.experience_level === 'Senior Level';
+            }
+        }
+
+        return matchesSearch && matchesExperience;
     });
 
 
@@ -232,7 +275,6 @@ const DashboardUser = () => {
             });
 
             if (response.ok) {
-                // Refresh user data (simplified by just toggling edit mode for now, 
                 // ideally we reload user from context or update context)
                 // A quick hack is to reload the page or trigger a re-fetch in AuthContext. 
                 // For now, we assume the user object won't update immediately in UI without reload/refetch
@@ -265,11 +307,47 @@ const DashboardUser = () => {
         }
     };
 
+    const handleLanguageChange = async (newLanguage: string) => {
+        setLanguage(newLanguage);
+        try {
+            console.log('Attempting to save language:', newLanguage);
+            console.log('Token:', token);
+
+            const response = await fetch('http://localhost:3000/api/settings', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ language: newLanguage })
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+
+            const data = await response.json();
+            console.log('Response data:', data);
+
+            if (response.ok) {
+                alert('Language preference saved successfully!');
+            } else {
+                console.error('Failed response:', data);
+                alert(`Failed to save language preference: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error saving language', error);
+            alert('Error saving language preference');
+        }
+    };
+
     // ... existing ...
 
 
 
     const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
+    const [quizTimer, setQuizTimer] = useState(300); // 5 minutes
+    const [moduleAttempts, setModuleAttempts] = useState<Record<number, number>>({});
+
     const [quizState, setQuizState] = useState({
         isActive: false,
         currentQuestionIndex: 0,
@@ -279,6 +357,24 @@ const DashboardUser = () => {
         passed: false,
         shuffledQuestions: [] as any[]
     });
+
+    // Quiz Timer Effect
+    useEffect(() => {
+        let interval: any;
+        if (quizState.isActive && quizTimer > 0) {
+            interval = setInterval(() => {
+                setQuizTimer((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        submitQuiz();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [quizState.isActive, quizTimer]);
 
     const activeModule = studyModules.find(m => m.id === activeModuleId);
 
@@ -305,48 +401,95 @@ const DashboardUser = () => {
         }
     };
 
-    const certificateRef = useRef<HTMLDivElement>(null);
 
-    const downloadCertificate = async () => {
-        console.log("Download Certificate clicked");
-        if (!certificateRef.current) {
-            console.error("Certificate Ref is null");
-            alert("Internal Error: Certificate element not found.");
-            return;
-        }
-        console.log("Certificate Ref found", certificateRef.current);
-        console.log("Dimensions:", certificateRef.current.offsetWidth, certificateRef.current.offsetHeight);
 
+    const downloadCertificate = () => {
         try {
-            const canvas = await html2canvas(certificateRef.current, {
-                backgroundColor: '#ffffff'
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
+            // Create PDF in landscape mode (A4)
+            const doc = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            // Dimensions (A4 landscape is 297mm x 210mm)
+            const width = doc.internal.pageSize.getWidth();
+            const height = doc.internal.pageSize.getHeight();
 
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Cybersparkz_Certificate_${user?.name || 'User'}.pdf`);
+            // Background
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, width, height, 'F');
+
+            // Ornamental Border (Double Border)
+            // Outer Gold Border
+            doc.setDrawColor(250, 204, 21); // yellow-500 #facc15
+            doc.setLineWidth(1.5);
+            doc.rect(10, 10, width - 20, height - 20);
+
+            // Inner Gold Border
+            doc.setLineWidth(0.5);
+            doc.rect(12, 12, width - 24, height - 24);
+
+            // Title: Certificate of Completion
+            doc.setTextColor(31, 41, 55); // gray-800 #1f2937
+            doc.setFont("times", "bold");
+            doc.setFontSize(36);
+            doc.text("Certificate of Completion", width / 2, 60, { align: "center" });
+
+            // Subtitle: This certifies that
+            doc.setTextColor(75, 85, 99); // gray-600 #4b5563
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(14);
+            doc.text("This certifies that", width / 2, 85, { align: "center" });
+
+            // User Name
+            doc.setTextColor(30, 58, 138); // blue-900 #1e3a8a
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(30);
+            doc.text(user?.name || "User Name", width / 2, 105, { align: "center" });
+
+            // Underline for Name
+            const nameWidth = doc.getTextWidth(user?.name || "User Name");
+            doc.setDrawColor(209, 213, 219); // gray-300 #d1d5db
+            doc.setLineWidth(0.5);
+            doc.line((width / 2) - (nameWidth / 2) - 10, 108, (width / 2) + (nameWidth / 2) + 10, 108);
+
+            // Text: has successfully completed the module
+            doc.setTextColor(75, 85, 99); // gray-600
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(14);
+            doc.text("has successfully completed the module", width / 2, 125, { align: "center" });
+
+            // Module Title
+            doc.setTextColor(31, 41, 55); // gray-800
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22);
+            doc.text(activeModule?.title || "Module Title", width / 2, 145, { align: "center" });
+
+            // Footer Section
+            const bottomY = 175;
+            doc.setFontSize(12);
+            doc.setTextColor(107, 114, 128); // gray-500
+
+            // Date Signature Line
+            const dateX = width / 2 - 60;
+            doc.setDrawColor(156, 163, 175); // gray-400
+            doc.line(dateX - 25, bottomY, dateX + 25, bottomY);
+            doc.text("Date", dateX, bottomY + 6, { align: "center" });
+            doc.text(new Date().toLocaleDateString(), dateX, bottomY - 5, { align: "center" });
+
+            // Instructor Signature Line
+            const instructorX = width / 2 + 60;
+            doc.line(instructorX - 25, bottomY, instructorX + 25, bottomY);
+            doc.text("Cybersparkz", instructorX, bottomY + 6, { align: "center" });
+            doc.text("Instructor", instructorX, bottomY - 5, { align: "center" });
+
+            // Save
+            doc.save(`Cybersparkz_Certificate_${user?.name || 'User'}.pdf`);
+
         } catch (err: any) {
             console.error("Error generating PDF:", err);
-
-            let message = "Unknown error";
-            if (err instanceof Error) {
-                message = err.message;
-            } else if (typeof err === 'string') {
-                message = err;
-            } else if (err && err.toString) {
-                message = err.toString();
-            }
-
-            alert(`Failed to generate certificate: ${message}. Check console for more details.`);
+            alert(`Failed to generate certificate: ${err.message || 'Unknown error'}`);
         }
     };
 
@@ -357,6 +500,22 @@ const DashboardUser = () => {
 
     const startQuiz = () => {
         if (!activeModule) return;
+
+        const currentAttempts = moduleAttempts[activeModule.id] || 0;
+        if (currentAttempts >= 3) {
+            alert("You have reached the maximum number of attempts (3) for this module.");
+            return;
+        }
+
+        // Increment attempts
+        setModuleAttempts(prev => ({
+            ...prev,
+            [activeModule.id]: currentAttempts + 1
+        }));
+
+        // Reset timer
+        setQuizTimer(300); // 5 minutes
+
         // Simple shuffle for options could be added here, for now using static order from data but logic supports mapping
         setQuizState({
             isActive: true,
@@ -383,6 +542,15 @@ const DashboardUser = () => {
         }));
     };
 
+    const prevQuestion = () => {
+        if (quizState.currentQuestionIndex > 0) {
+            setQuizState(prev => ({
+                ...prev,
+                currentQuestionIndex: prev.currentQuestionIndex - 1
+            }));
+        }
+    };
+
     const submitQuiz = () => {
         if (!activeModule) return;
 
@@ -393,10 +561,12 @@ const DashboardUser = () => {
             }
         });
 
-        const passed = (correctCount / activeModule.quiz.length) >= 0.75;
+        // 90% required to pass
+        const passed = (correctCount / activeModule.quiz.length) >= 0.9;
 
         setQuizState(prev => ({
             ...prev,
+            isActive: false, // Stop timer
             score: correctCount,
             showResults: true,
             passed
@@ -429,9 +599,14 @@ const DashboardUser = () => {
             `}>
                 <div className="p-6 border-b dark:border-gray-700 flex justify-between items-center">
 
-                    <div>
-                        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Cybersparkz</h1>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Job Seeker Portal</p>
+                    <div className="flex items-center space-x-3">
+                        <div className="h-10 w-10 rounded-full overflow-hidden">
+                            <img src={landingLogo} alt="Logo" className="h-full w-full object-cover" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Cybersparkz</h1>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Job Seeker Portal</p>
+                        </div>
                     </div>
                     <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-500">
                         <X size={24} />
@@ -526,15 +701,27 @@ const DashboardUser = () => {
                         </h2>
                     </div>
                     {activeTab === 'jobs' && (
-                        <div className="hidden md:flex flex-1 max-w-md ml-8 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                                type="text"
-                                placeholder="Search jobs..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="hidden md:flex flex-1 max-w-md ml-8 relative space-x-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                                <input
+                                    type="text"
+                                    placeholder="Search jobs..."
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <select
+                                className="border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                value={experienceFilter}
+                                onChange={(e) => setExperienceFilter(e.target.value)}
+                            >
+                                <option value="All">All Levels</option>
+                                <option value="Freshers">Freshers</option>
+                                <option value="1-5 Years">1-5 Years</option>
+                                <option value="5+ Years">5+ Years</option>
+                            </select>
                         </div>
                     )}
                 </header>
@@ -612,116 +799,129 @@ const DashboardUser = () => {
 
                     {
                         activeTab === 'profile' && !activeModuleId && (
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 max-w-2xl relative">
-                                {/* Photo Upload - Right Corner */}
-                                <div className="absolute top-6 right-6 flex flex-col items-center group">
-                                    <div className="relative h-24 w-24 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-white dark:border-gray-700 shadow-md flex items-center justify-center overflow-hidden mb-2">
-                                        {profile.photo_url ? (
-                                            <img src={profile.photo_url} alt="Profile" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <User className="h-10 w-10 text-blue-500 dark:text-blue-300" />
-                                        )}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 max-w-3xl">
+                                <div className="flex flex-col md:flex-row gap-8">
+                                    {/* Left Column: Photo & Actions */}
+                                    <div className="flex flex-col items-center space-y-4">
+                                        <div className="relative group">
+                                            <div className="h-32 w-32 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-white dark:border-gray-700 shadow-md flex items-center justify-center overflow-hidden">
+                                                {profile.photo_url ? (
+                                                    <img src={profile.photo_url} alt="Profile" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <User className="h-16 w-16 text-blue-500 dark:text-blue-300" />
+                                                )}
+                                            </div>
 
-                                        {isEditingProfile && (
-                                            <label className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-white text-xs font-medium">Change</span>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                                            </label>
-                                        )}
-                                    </div>
-                                    {isEditingProfile && (
-                                        <div className="flex flex-col items-center gap-1">
-                                            <label className="cursor-pointer text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
-                                                Upload Photo
-                                                <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                                            </label>
-                                            {profile.photo_url && (
+                                            {isEditingProfile && (
+                                                <>
+                                                    {/* Upload Overlay */}
+                                                    <label className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                                                        <Settings className="h-8 w-8 text-white opacity-80" /> {/* Using Settings as placeholder for Camera if Camera not imported, checking imports... Wait, Camera is not imported. I'll use Upload or verify imports. Upload is imported. */}
+                                                        {/* Re-checking imports: Upload is imported. Settings is imported. Let's use Upload. */}
+                                                    </label>
+
+                                                    {/* Delete Button */}
+                                                    {profile.photo_url && (
+                                                        <button
+                                                            onClick={() => setProfile({ ...profile, photo_url: '' })}
+                                                            className="absolute -top-1 -right-1 bg-red-500 text-white p-1.5 rounded-full shadow-sm hover:bg-red-600 transition-colors"
+                                                            title="Remove Photo"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <div className="w-full">
+                                            <button
+                                                onClick={isEditingProfile ? handleSaveProfile : () => setIsEditingProfile(true)}
+                                                className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${isEditingProfile
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600'
+                                                    }`}
+                                            >
+                                                {isEditingProfile ? 'Save Changes' : 'Edit Profile'}
+                                            </button>
+
+                                            {isEditingProfile && (
                                                 <button
-                                                    onClick={() => setProfile({ ...profile, photo_url: '' })}
-                                                    className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline"
+                                                    onClick={() => setIsEditingProfile(false)}
+                                                    className="w-full mt-2 py-2 px-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium text-sm"
                                                 >
-                                                    Remove Photo
+                                                    Cancel
                                                 </button>
                                             )}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
 
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Details</h3>
-                                    <div className="space-x-4">
-                                        {isEditingProfile && (
-                                            <button
-                                                onClick={() => setIsEditingProfile(false)}
-                                                className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-                                            >
-                                                Cancel
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={isEditingProfile ? handleSaveProfile : () => setIsEditingProfile(true)}
-                                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
-                                        >
-                                            {isEditingProfile ? 'Save Changes' : 'Edit Profile'}
-                                        </button>
-                                    </div>
-                                </div>
+                                    {/* Right Column: Details */}
+                                    <div className="flex-1 space-y-5">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-3 mb-4">Profile Details</h3>
 
-                                <div className="space-y-4 pr-32"> {/* Right padding for photo */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
-                                        {isEditingProfile ? (
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                                value={profile.name}
-                                                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                                            />
-                                        ) : (
-                                            <p className="mt-1 text-gray-900 dark:text-white font-medium">{user?.name}</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
-                                        <p className="mt-1 text-gray-900 dark:text-white font-medium">@{user?.username}</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
-                                        <p className="mt-1 text-gray-900 dark:text-white font-medium capitalize">{user?.role}</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bio</label>
-                                        {isEditingProfile ? (
-                                            <textarea
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                                rows={3}
-                                                value={profile.bio}
-                                                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                                                placeholder="Tell recruiters about yourself..."
-                                            />
-                                        ) : (
-                                            <p className="mt-1 text-gray-600 dark:text-gray-300">{profile.bio || "No bio added yet."}</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Skills</label>
-                                        {isEditingProfile ? (
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                                value={profile.skills}
-                                                onChange={(e) => setProfile({ ...profile, skills: e.target.value })}
-                                                placeholder="React, Node.js, Python..."
-                                            />
-                                        ) : (
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {profile.skills ? profile.skills.split(',').map((skill, i) => (
-                                                    <span key={i} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
-                                                        {skill.trim()}
-                                                    </span>
-                                                )) : <span className="text-gray-500 text-sm">No skills listed.</span>}
+                                        <div className="grid grid-cols-1 gap-5">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Full Name</label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                        value={profile.name}
+                                                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                                    />
+                                                ) : (
+                                                    <p className="text-lg font-medium text-gray-900 dark:text-white">{user?.name}</p>
+                                                )}
                                             </div>
-                                        )}
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Username</label>
+                                                    <p className="text-base text-gray-900 dark:text-white">@{user?.username}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Role</label>
+                                                    <p className="text-base text-gray-900 dark:text-white capitalize">{user?.role}</p>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Bio</label>
+                                                {isEditingProfile ? (
+                                                    <textarea
+                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                                        rows={3}
+                                                        value={profile.bio}
+                                                        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                                        placeholder="Tell recruiters about yourself..."
+                                                    />
+                                                ) : (
+                                                    <p className="mt-1 text-gray-600 dark:text-gray-300">{profile.bio || "No bio added yet."}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Skills</label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        type="text"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                                        value={profile.skills}
+                                                        onChange={(e) => setProfile({ ...profile, skills: e.target.value })}
+                                                        placeholder="React, Node.js, Python..."
+                                                    />
+                                                ) : (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {profile.skills ? profile.skills.split(',').map((skill, i) => (
+                                                            <span key={i} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                                                                {skill.trim()}
+                                                            </span>
+                                                        )) : <span className="text-gray-500 text-sm">No skills listed.</span>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -814,7 +1014,7 @@ const DashboardUser = () => {
                                             {/* Case Study */}
                                             <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-100 dark:border-blue-800">
                                                 <h4 className="text-xl font-bold text-blue-900 dark:text-blue-300 mb-2">Case Study: {activeModule.caseStudy.title}</h4>
-                                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                                                     {activeModule.caseStudy.scenario}
                                                 </p>
                                             </div>
@@ -836,17 +1036,32 @@ const DashboardUser = () => {
                                                         <span>View Certificate</span>
                                                     </button>
                                                 )}
+
+                                                {/* Show attempts info if not passed yet */}
+                                                {!completedTopics.includes(activeModule.id) && (
+                                                    <div className="mt-2 text-sm text-gray-500 text-center w-full">
+                                                        Attempts left: {3 - (moduleAttempts[activeModule.id] || 0)}/3
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
 
                                     {quizState.isActive && !quizState.showResults && (
                                         <div className="max-w-2xl mx-auto">
-                                            <div className="mb-6 flex justify-between items-center">
-                                                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                                    Question {quizState.currentQuestionIndex + 1} of {activeModule.quiz.length}
-                                                </span>
-                                                <span className="text-xs text-gray-400">75% required to pass</span>
+                                            <div className="mb-6 flex justify-between items-center bg-blue-50 dark:bg-gray-700 p-4 rounded-lg">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                        Question {quizState.currentQuestionIndex + 1} of {activeModule.quiz.length}
+                                                    </span>
+                                                    <span className="text-xs text-blue-600 dark:text-blue-400 font-bold">Attempt {(moduleAttempts[activeModule.id] || 0)} of 3</span>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    <span className={`text-xl font-mono font-bold ${quizTimer < 30 ? 'text-red-600 animate-pulse' : 'text-gray-700 dark:text-gray-300'}`}>
+                                                        {Math.floor(quizTimer / 60)}:{(quizTimer % 60).toString().padStart(2, '0')}
+                                                    </span>
+                                                    <span className="text-xs text-gray-400">90% required to pass</span>
+                                                </div>
                                             </div>
 
                                             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg card">
@@ -870,20 +1085,29 @@ const DashboardUser = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="mt-8 flex justify-end">
+                                            <div className="mt-8 flex justify-between">
+                                                <button
+                                                    onClick={prevQuestion}
+                                                    disabled={quizState.currentQuestionIndex === 0}
+                                                    className={`px-6 py-2 rounded-lg transition-colors ${quizState.currentQuestionIndex === 0
+                                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                                                        }`}
+                                                >
+                                                    Previous
+                                                </button>
+
                                                 {quizState.currentQuestionIndex < activeModule.quiz.length - 1 ? (
                                                     <button
                                                         onClick={nextQuestion}
-                                                        disabled={quizState.answers[quizState.shuffledQuestions[quizState.currentQuestionIndex].id] === undefined}
-                                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700"
+                                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                                                     >
-                                                        Next Question
+                                                        {quizState.answers[quizState.shuffledQuestions[quizState.currentQuestionIndex].id] !== undefined ? 'Next Question' : 'Skip'}
                                                     </button>
                                                 ) : (
                                                     <button
                                                         onClick={submitQuiz}
-                                                        disabled={quizState.answers[quizState.shuffledQuestions[quizState.currentQuestionIndex].id] === undefined}
-                                                        className="bg-green-600 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700"
+                                                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
                                                     >
                                                         Submit Quiz
                                                     </button>
@@ -905,32 +1129,82 @@ const DashboardUser = () => {
                                                 <p className="text-gray-600 dark:text-gray-300">
                                                     {quizState.passed
                                                         ? `You passed the assessment with a score of ${Math.round((quizState.score / activeModule.quiz.length) * 100)}%.`
-                                                        : `You scored ${Math.round((quizState.score / activeModule.quiz.length) * 100)}%. You need 75% to pass and earn your certificate.`
+                                                        : `You scored ${Math.round((quizState.score / activeModule.quiz.length) * 100)}%. You need 90% to pass and earn your certificate.`
                                                     }
                                                 </p>
+                                                {!quizState.passed && (
+                                                    <p className="text-sm font-bold text-red-500">
+                                                        Attempts remaining: {3 - (moduleAttempts[activeModule.id] || 0)}
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {quizState.passed ? (
                                                 <div className="flex flex-col items-center space-y-4">
-                                                    <div ref={certificateRef}
-                                                        className="p-8 rounded-lg shadow-xl relative overflow-hidden w-full max-w-3xl text-center"
-                                                        style={{ backgroundColor: '#ffffff', border: '4px double #facc15' }} // bg-white, border-yellow-400
+                                                    <div
+                                                        className="relative overflow-hidden w-full max-w-3xl mx-auto"
+                                                        style={{
+                                                            backgroundColor: '#ffffff',
+                                                            border: '4px double #facc15',
+                                                            borderRadius: '12px',
+                                                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                                            padding: '2rem',
+                                                            textAlign: 'center',
+                                                            color: '#1f2937' // Explicit color to prevent oklch inheritance
+                                                        }}
                                                     >
-                                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            right: 0,
+                                                            padding: '1rem',
+                                                            opacity: 0.1
+                                                        }}>
                                                             <Award className="h-48 w-48" color="#facc15" />
                                                         </div>
-                                                        <h2 className="text-3xl font-serif font-bold mb-4" style={{ color: '#1f2937' }}>Certificate of Completion</h2> {/* text-gray-800 */}
-                                                        <p className="mb-6" style={{ color: '#4b5563' }}>This certifies that</p> {/* text-gray-600 */}
-                                                        <p className="text-2xl font-bold inline-block px-8 pb-1 mb-6" style={{ color: '#1e3a8a', borderBottom: '2px solid #d1d5db' }}>{user?.name}</p> {/* text-blue-900, border-gray-300 */}
-                                                        <p className="mb-2" style={{ color: '#4b5563' }}>has successfully completed the module</p> {/* text-gray-600 */}
-                                                        <h4 className="text-xl font-bold mb-8" style={{ color: '#1f2937' }}>{activeModule.title}</h4> {/* text-gray-800 */}
-                                                        <div className="flex justify-center space-x-12 text-sm" style={{ color: '#6b7280' }}> {/* text-gray-500 */}
+                                                        <h2 style={{
+                                                            fontSize: '1.875rem',
+                                                            lineHeight: '2.25rem',
+                                                            fontWeight: 700,
+                                                            fontFamily: 'serif',
+                                                            marginBottom: '1rem',
+                                                            color: '#1f2937'
+                                                        }}>Certificate of Completion</h2>
+                                                        <p style={{ marginBottom: '1.5rem', color: '#4b5563' }}>This certifies that</p>
+                                                        <p style={{
+                                                            fontSize: '1.5rem',
+                                                            lineHeight: '2rem',
+                                                            fontWeight: 700,
+                                                            display: 'inline-block',
+                                                            paddingLeft: '2rem',
+                                                            paddingRight: '2rem',
+                                                            paddingBottom: '0.25rem',
+                                                            marginBottom: '1.5rem',
+                                                            color: '#1e3a8a',
+                                                            borderBottom: '2px solid #d1d5db'
+                                                        }}>{user?.name}</p>
+                                                        <p style={{ marginBottom: '0.5rem', color: '#4b5563' }}>has successfully completed the module</p>
+                                                        <h4 style={{
+                                                            fontSize: '1.25rem', // text-xl
+                                                            lineHeight: '1.75rem',
+                                                            fontWeight: 700, // font-bold
+                                                            marginBottom: '2rem',
+                                                            color: '#1f2937'
+                                                        }}>{activeModule.title}</h4>
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'center',
+                                                            gap: '3rem',
+                                                            fontSize: '0.875rem', // text-sm
+                                                            lineHeight: '1.25rem',
+                                                            color: '#6b7280'
+                                                        }}>
                                                             <div>
-                                                                <p className="pt-1 w-32" style={{ borderTop: '1px solid #9ca3af' }}>Date</p> {/* border-gray-400 */}
+                                                                <p style={{ paddingTop: '0.25rem', width: '8rem', borderTop: '1px solid #9ca3af' }}>Date</p>
                                                                 <p>{new Date().toLocaleDateString()}</p>
                                                             </div>
                                                             <div>
-                                                                <p className="pt-1 w-32" style={{ borderTop: '1px solid #9ca3af' }}>Cybersparkz</p> {/* border-gray-400 */}
+                                                                <p style={{ paddingTop: '0.25rem', width: '8rem', borderTop: '1px solid #9ca3af' }}>Cybersparkz</p>
                                                                 <p>Instructor</p>
                                                             </div>
                                                         </div>
@@ -947,9 +1221,13 @@ const DashboardUser = () => {
                                             ) : (
                                                 <button
                                                     onClick={retakeQuiz}
-                                                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                                                    disabled={(moduleAttempts[activeModule.id] || 0) >= 3}
+                                                    className={`px-8 py-3 rounded-lg font-medium ${(moduleAttempts[activeModule.id] || 0) >= 3
+                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                        }`}
                                                 >
-                                                    Retake Quiz
+                                                    {(moduleAttempts[activeModule.id] || 0) >= 3 ? "Run out of attempts" : "Retake Quiz"}
                                                 </button>
                                             )}
 
@@ -968,70 +1246,100 @@ const DashboardUser = () => {
 
                     {
                         activeTab === 'settings' && !activeModuleId && (
-                            <div className="space-y-6 max-w-2xl bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2">Appearance</h3>
-                                <div className="flex items-center justify-between py-4">
-                                    <div>
-                                        <p className="font-medium text-gray-900 dark:text-white">Theme Preference</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">Switch between light and dark modes.</p>
+                            <div className="space-y-6 max-w-5xl mx-auto">
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Appearance</h3>
+                                            <p className="text-gray-500 dark:text-gray-400">Choose your preferred theme</p>
+                                        </div>
+                                        <button
+                                            onClick={toggleTheme}
+                                            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                        >
+                                            {theme === 'dark' ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <Sun className="h-5 w-5 text-yellow-500" />
+                                                    <span className="text-gray-900 dark:text-white font-medium">Light Mode</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center space-x-2">
+                                                    <Moon className="h-5 w-5 text-gray-700" />
+                                                    <span className="text-gray-900 dark:text-white font-medium">Dark Mode</span>
+                                                </div>
+                                            )}
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={toggleTheme}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
-                                        />
-                                    </button>
                                 </div>
 
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 pt-4">Privacy & Security</h3>
-                                <div className="space-y-4 pt-4">
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 mb-4">Regional Settings</h3>
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <span className="font-medium text-gray-900 dark:text-white">Public Profile</span>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Allow recruiters to find you.</p>
+                                            <span className="font-medium text-gray-900 dark:text-white">Language</span>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred language</p>
                                         </div>
-                                        <input type="checkbox" className="h-4 w-4 text-blue-600 rounded" defaultChecked />
+                                        <select
+                                            value={language}
+                                            onChange={(e) => handleLanguageChange(e.target.value)}
+                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="English (India)">English (India)</option>
+                                            <option value="Hindi">हिंदी (Hindi)</option>
+                                            <option value="Kannada">ಕನ್ನಡ (Kannada)</option>
+                                        </select>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <span className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</span>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                {user?.is_two_factor_enabled ? "Your account is secured with 2FA." : "Add an extra layer of security."}
-                                            </p>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 pt-4">Privacy & Security</h3>
+                                    <div className="space-y-4 pt-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <span className="font-medium text-gray-900 dark:text-white">Public Profile</span>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Allow recruiters to find you.</p>
+                                            </div>
+                                            <input type="checkbox" className="h-4 w-4 text-blue-600 rounded" defaultChecked />
                                         </div>
-                                        {user?.is_two_factor_enabled ? (
-                                            <button
-                                                onClick={async () => {
-                                                    if (confirm("Are you sure you want to disable 2FA?")) {
-                                                        try {
-                                                            await disable2FA();
-                                                            alert("2FA disabled successfully.");
-                                                        } catch (err) {
-                                                            alert("Failed to disable 2FA");
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <span className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</span>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {user?.is_two_factor_enabled ? "Your account is secured with 2FA." : "Add an extra layer of security."}
+                                                </p>
+                                            </div>
+                                            {user?.is_two_factor_enabled ? (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm("Are you sure you want to disable 2FA?")) {
+                                                            try {
+                                                                await disable2FA();
+                                                                alert("2FA disabled successfully.");
+                                                            } catch (err) {
+                                                                alert("Failed to disable 2FA");
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                                className="text-sm text-red-600 dark:text-red-400 hover:underline"
-                                            >
-                                                Disable
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={handleEnable2FA}
-                                                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                                            >
-                                                Enable
-                                            </button>
-                                        )}
+                                                    }}
+                                                    className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                                                >
+                                                    Disable
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={handleEnable2FA}
+                                                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                                >
+                                                    Enable
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )
                     }
-                </main>
-            </div>
+                </main >
+            </div >
 
             {/* 2FA Setup Modal */}
             {
@@ -1096,6 +1404,16 @@ const DashboardUser = () => {
                             {appStep === 1 ? (
                                 <div className="space-y-4">
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name *</label>
+                                        <input
+                                            type="text"
+                                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                            value={appForm.full_name}
+                                            onChange={(e) => setAppForm({ ...appForm, full_name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email *</label>
                                         <input
                                             type="email"
@@ -1125,64 +1443,72 @@ const DashboardUser = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Resume (PDF, max 2MB) *</label>
-                                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md hover:border-blue-500 transition-colors">
-                                            <div className="space-y-1 text-center">
-                                                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                                                <div className="flex text-sm text-gray-600 dark:text-gray-400">
-                                                    <label
-                                                        htmlFor="file-upload"
-                                                        className="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                                                    >
-                                                        <span>Upload a file</span>
-                                                        <input
-                                                            id="file-upload"
-                                                            name="file-upload"
-                                                            type="file"
-                                                            accept="application/pdf"
-                                                            className="sr-only"
-                                                            onChange={handleFileChange}
-                                                        />
-                                                    </label>
-                                                    <p className="pl-1">or drag and drop</p>
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-500">
-                                                    PDF up to 2MB
-                                                </p>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resume (PDF, max 2MB) *</label>
+                                        <div className={`mt-1 flex justify-center px-4 py-2 border-2 border-dashed rounded-md transition-colors ${appForm.resume ? 'border-green-500 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-gray-600 hover:border-blue-500'}`}>
+                                            <div className="space-y-1 text-center w-full">
+                                                {appForm.resume ? (
+                                                    <div className="flex flex-col items-center justify-center py-1">
+                                                        <FileText className="h-6 w-6 text-green-600 dark:text-green-400 mb-1" />
+                                                        <p className="text-sm font-medium text-green-700 dark:text-green-300 truncate max-w-[200px]">
+                                                            {appForm.resume.name}
+                                                        </p>
+                                                        <p className="text-xs text-green-600 dark:text-green-400/80 mb-1">
+                                                            {(appForm.resume.size / 1024 / 1024).toFixed(2)} MB
+                                                        </p>
+                                                        <label
+                                                            htmlFor="file-upload"
+                                                            className="relative cursor-pointer bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md text-xs font-medium text-green-600 dark:text-green-400 hover:text-green-500 border border-green-200 dark:border-green-800 shadow-sm"
+                                                        >
+                                                            <span>Change File</span>
+                                                            <input
+                                                                id="file-upload"
+                                                                name="file-upload"
+                                                                type="file"
+                                                                accept="application/pdf"
+                                                                className="sr-only"
+                                                                onChange={handleFileChange}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <Upload className="mx-auto h-6 w-6 text-gray-400" />
+                                                        <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                                                            <label
+                                                                htmlFor="file-upload"
+                                                                className="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                                                            >
+                                                                <span>Upload a file</span>
+                                                                <input
+                                                                    id="file-upload"
+                                                                    name="file-upload"
+                                                                    type="file"
+                                                                    accept="application/pdf"
+                                                                    className="sr-only"
+                                                                    onChange={handleFileChange}
+                                                                />
+                                                            </label>
+                                                            <p className="pl-1">or drag and drop</p>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                                                            PDF up to 2MB
+                                                        </p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
-                                        {appForm.resume && (
-                                            <div className="mt-2 flex items-center text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                                                <FileText className="h-4 w-4 mr-2" />
-                                                {appForm.resume.name}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
                                     <p className="text-sm text-gray-600 dark:text-gray-400">Please review your details before submitting.</p>
                                     <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md space-y-2 mb-4">
+                                        <p><strong>Full Name:</strong> {appForm.full_name}</p>
                                         <p><strong>Email:</strong> {appForm.email}</p>
                                         <p><strong>Contact:</strong> {appForm.contact_number}</p>
                                         <p><strong>Alt Contact:</strong> {appForm.alt_contact_number || 'N/A'}</p>
                                         <p><strong>Resume:</strong> {appForm.resume?.name}</p>
                                     </div>
-
-                                    {appForm.resume && (
-                                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                            <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 font-medium text-sm text-gray-700 dark:text-gray-300">
-                                                Resume Preview
-                                            </div>
-                                            <div className="h-[400px] w-full bg-gray-50 dark:bg-gray-900">
-                                                <iframe
-                                                    src={URL.createObjectURL(appForm.resume)}
-                                                    className="w-full h-full"
-                                                    title="Resume Preview"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
@@ -1224,29 +1550,51 @@ const DashboardUser = () => {
                     </div>
                 )
             }
-        </div>
+
+            {/* Interview Notification Popup */}
+            {showInterviewAlert && interviewNotifications.length > 0 && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                                <Bell className="h-6 w-6 text-blue-600 mr-2" />
+                                Interview Scheduled!
+                            </h3>
+                            <button onClick={() => setShowInterviewAlert(false)} className="text-gray-500 hover:text-gray-700">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            {interviewNotifications.map((interview, index) => (
+                                <div key={index} className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <p className="font-semibold text-gray-900 dark:text-white mb-2">{interview.job_title}</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                        <strong>Company:</strong> {interview.company_name}
+                                    </p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                        <strong>Date & Time:</strong> {new Date(interview.interview_date).toLocaleString()}
+                                    </p>
+                                    {interview.interview_notes && (
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
+                                            <strong>Notes:</strong> {interview.interview_notes}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowInterviewAlert(false)}
+                            className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div >
     );
 };
 
-const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
-    <div
-        onClick={onClick}
-        className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition-all duration-200 group ${active
-            ? 'bg-blue-50 text-blue-600'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
-    >
-        <span className={`mr-3 ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
-            {icon}
-        </span>
-        <span className="font-medium">{label}</span>
-    </div>
-);
 
-const ClockIcon = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-);
 
 export default DashboardUser;

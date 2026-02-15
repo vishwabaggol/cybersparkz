@@ -14,7 +14,7 @@ const DashboardRecruiter = () => {
     const [applications, setApplications] = useState<any[]>([]);
 
     // Session Timer
-    const [timeLeft, setTimeLeft] = useState(1200); // 20 mins
+    const [timeLeft, setTimeLeft] = useState(600); // 10 mins
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -80,6 +80,8 @@ const DashboardRecruiter = () => {
     const [showInterviewModal, setShowInterviewModal] = useState(false);
     const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
     const [interviewData, setInterviewData] = useState({ date: '', notes: '' });
+    const [showAppPreview, setShowAppPreview] = useState(false);
+    const [selectedApp, setSelectedApp] = useState<any | null>(null);
 
     // Job Posting State
     const [jobForm, setJobForm] = useState({
@@ -88,7 +90,7 @@ const DashboardRecruiter = () => {
         requirements: '',
         location: '',
         salary_range: '',
-        experience_level: 'Entry Level'
+        experience_level: 'Fresher'
     });
 
     useEffect(() => {
@@ -129,7 +131,7 @@ const DashboardRecruiter = () => {
                     requirements: '',
                     location: '',
                     salary_range: '',
-                    experience_level: 'Entry Level'
+                    experience_level: 'Fresher'
                 });
             } else {
                 alert('Failed to post job');
@@ -171,7 +173,7 @@ const DashboardRecruiter = () => {
             if (response.ok) {
                 alert('Profile Updated Successfully');
                 setIsEditing(false);
-                // Ideally refresh user data here or rely on next fetch
+                window.location.reload();
             } else {
                 alert('Failed to update profile');
             }
@@ -242,9 +244,9 @@ const DashboardRecruiter = () => {
 
             {/* Sidebar */}
             <div className={`
-                fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl h-full flex flex-col transition-transform duration-300 transform 
+                fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl flex flex-col transition-transform duration-300 transform 
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-                md:relative md:translate-x-0
+                md:translate-x-0
             `}>
                 <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <LogoText />
@@ -287,8 +289,12 @@ const DashboardRecruiter = () => {
                         Session expires: <span className={timeLeft < 300 ? 'text-red-500 font-bold' : ''}>{formatTime(timeLeft)}</span>
                     </div>
                     <div className="flex items-center mb-4 px-2">
-                        <div className="h-8 w-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
-                            {user?.company_name?.charAt(0)}
+                        <div className="h-8 w-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm overflow-hidden">
+                            {user?.photo_url ? (
+                                <img src={user.photo_url} alt="Profile" className="h-full w-full object-cover" />
+                            ) : (
+                                user?.company_name?.charAt(0)
+                            )}
                         </div>
                         <div className="ml-3 overflow-hidden">
                             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{user?.company_name}</p>
@@ -302,7 +308,7 @@ const DashboardRecruiter = () => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-8 dark:bg-gray-900 min-h-screen overflow-y-auto">
+            <div className="flex-1 p-8 dark:bg-gray-900 min-h-screen overflow-y-auto md:ml-64">
                 <header className="flex items-center mb-8">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
@@ -360,9 +366,11 @@ const DashboardRecruiter = () => {
                                             value={jobForm.experience_level}
                                             onChange={(e) => setJobForm({ ...jobForm, experience_level: e.target.value })}
                                         >
-                                            <option>Entry Level</option>
-                                            <option>Mid Level</option>
-                                            <option>Senior Level</option>
+                                            <option>Fresher</option>
+                                            <option>1 year</option>
+                                            <option>2/3 year</option>
+                                            <option>4 year</option>
+                                            <option>5+ year</option>
                                         </select>
                                     </div>
                                     <div className="md:col-span-2">
@@ -420,6 +428,7 @@ const DashboardRecruiter = () => {
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Role</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied Date</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
                                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
@@ -448,6 +457,14 @@ const DashboardRecruiter = () => {
                                                                     'bg-yellow-100 text-yellow-800'}`}>
                                                             {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                                                         </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                        <button
+                                                            onClick={() => { setSelectedApp(app); setShowAppPreview(true); }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 transition-colors text-sm font-medium"
+                                                        >
+                                                            View Details
+                                                        </button>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -498,95 +515,126 @@ const DashboardRecruiter = () => {
 
 
                     {activeTab === 'profile' && (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                            <div className="h-32 bg-gradient-to-r from-purple-500 to-indigo-600"></div>
-                            <div className="px-8 pb-8 relative">
-                                <div className="absolute -top-16 right-8 flex flex-col items-end">
-                                    <div className="h-32 w-32 rounded-full border-4 border-white dark:border-gray-800 bg-gray-200 flex items-center justify-center text-gray-400 text-4xl font-bold shadow-md overflow-hidden relative group">
-                                        {profileForm.photo_url ? (
-                                            <img src={profileForm.photo_url} alt="Profile" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <span>{user?.company_name?.charAt(0)}</span>
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 max-w-3xl">
+                            <div className="flex flex-col md:flex-row gap-8">
+                                {/* Left Column: Photo & Actions */}
+                                <div className="flex flex-col items-center space-y-4">
+                                    <div className="relative group">
+                                        <div className="h-32 w-32 rounded-full bg-purple-100 dark:bg-purple-900 border-4 border-white dark:border-gray-700 shadow-md flex items-center justify-center overflow-hidden">
+                                            {profileForm.photo_url ? (
+                                                <img src={profileForm.photo_url} alt="Profile" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <User className="h-16 w-16 text-purple-500 dark:text-purple-300" />
+                                            )}
+                                        </div>
+
+                                        {isEditing && (
+                                            <>
+                                                {/* Upload Overlay */}
+                                                <label className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                                                    <Settings className="h-8 w-8 text-white opacity-80" />
+                                                </label>
+
+                                                {/* Delete Button */}
+                                                {profileForm.photo_url && (
+                                                    <button
+                                                        onClick={() => setProfileForm({ ...profileForm, photo_url: '' })}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white p-1.5 rounded-full shadow-sm hover:bg-red-600 transition-colors"
+                                                        title="Remove Photo"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
-                                        <label className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                            <span className="text-white text-xs font-medium">Change</span>
-                                            <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                                        </label>
                                     </div>
-                                    {profileForm.photo_url && (
+
+                                    <div className="w-full">
                                         <button
-                                            type="button"
-                                            onClick={() => setProfileForm({ ...profileForm, photo_url: '' })}
-                                            className="mt-2 text-xs text-red-600 hover:text-red-800 bg-red-50 px-2 py-1 rounded shadow-sm"
+                                            onClick={isEditing ? handleProfileUpdate : () => setIsEditing(true)}
+                                            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${isEditing
+                                                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600'
+                                                }`}
                                         >
-                                            Remove Photo
+                                            {isEditing ? 'Save Changes' : 'Edit Profile'}
                                         </button>
-                                    )}
-                                </div>
-                                <div className="mt-4">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Profile Details</h3>
-                                        {!isEditing && (
+
+                                        {isEditing && (
                                             <button
-                                                onClick={() => setIsEditing(true)}
-                                                className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+                                                onClick={handleCancelEdit}
+                                                className="w-full mt-2 py-2 px-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium text-sm"
                                             >
-                                                Edit Profile
+                                                Cancel
                                             </button>
                                         )}
                                     </div>
-                                    <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-2xl">
+                                </div>
+
+                                {/* Right Column: Details */}
+                                <div className="flex-1 space-y-5">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-3 mb-4">Profile Details</h3>
+
+                                    <div className="grid grid-cols-1 gap-5">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Name</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
-                                                value={profileForm.company_name}
-                                                onChange={(e) => setProfileForm({ ...profileForm, company_name: e.target.value })}
-                                                disabled={!isEditing}
-                                            />
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Company Name</label>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                    value={profileForm.company_name}
+                                                    onChange={(e) => setProfileForm({ ...profileForm, company_name: e.target.value })}
+                                                />
+                                            ) : (
+                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{user?.company_name}</p>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Address</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
-                                                value={profileForm.company_address}
-                                                onChange={(e) => setProfileForm({ ...profileForm, company_address: e.target.value })}
-                                                disabled={!isEditing}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Recruiter Name</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
-                                                value={profileForm.name}
-                                                onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                                                disabled={!isEditing}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Designation</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
-                                                value={profileForm.designation}
-                                                onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })}
-                                                disabled={!isEditing}
-                                            />
-                                        </div>
-                                        {isEditing && (
-                                            <div className="flex gap-4">
-                                                <button type="button" onClick={handleCancelEdit} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
-                                                    Cancel
-                                                </button>
-                                                <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
-                                                    Save Changes
-                                                </button>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Recruiter Name</label>
+                                                {isEditing ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                        value={profileForm.name}
+                                                        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                                                    />
+                                                ) : (
+                                                    <p className="text-base text-gray-900 dark:text-white">{user?.name}</p>
+                                                )}
                                             </div>
-                                        )}
-                                    </form>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Designation</label>
+                                                {isEditing ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                        value={profileForm.designation}
+                                                        onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })}
+                                                    />
+                                                ) : (
+                                                    <p className="text-base text-gray-900 dark:text-white">{user?.designation}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Company Address</label>
+                                            {isEditing ? (
+                                                <textarea
+                                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                                                    rows={2}
+                                                    value={profileForm.company_address}
+                                                    onChange={(e) => setProfileForm({ ...profileForm, company_address: e.target.value })}
+                                                    placeholder="Company address..."
+                                                />
+                                            ) : (
+                                                <p className="mt-1 text-gray-600 dark:text-gray-300">{profileForm.company_address || "No address added yet."}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -658,6 +706,84 @@ const DashboardRecruiter = () => {
                                             Schedule
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Application Preview Modal */}
+                    {showAppPreview && selectedApp && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowAppPreview(false)}>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Application Details</h3>
+                                    <button onClick={() => setShowAppPreview(false)} className="text-gray-500 hover:text-gray-700">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white font-medium">{selectedApp.full_name}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Job Role</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white font-medium">{selectedApp.job_title}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedApp.email}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Contact Number</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedApp.contact_number}</p>
+                                        </div>
+                                    </div>
+
+                                    {selectedApp.alt_contact_number && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Alternate Contact</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedApp.alt_contact_number}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Applied Date</label>
+                                            <p className="mt-1 text-base text-gray-900 dark:text-white">{new Date(selectedApp.applied_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                                            <p className="mt-1">
+                                                <span className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                                                    ${selectedApp.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                                        selectedApp.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                            'bg-yellow-100 text-yellow-800'}`}>
+                                                    {selectedApp.status.charAt(0).toUpperCase() + selectedApp.status.slice(1)}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {selectedApp.resume_url && (
+                                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Resume</label>
+                                            <a
+                                                href={selectedApp.resume_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            >
+                                                <FileText className="h-4 w-4 mr-2" />
+                                                Download Resume
+                                            </a>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

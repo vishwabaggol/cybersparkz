@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Mail, User, Briefcase, MapPin, Building, Phone, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Mail, User, Briefcase, MapPin, Building, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { LogoText } from '../components/Logo';
 
 const Signup = () => {
@@ -26,7 +26,7 @@ const Signup = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
+        let timer: ReturnType<typeof setTimeout>;
         if (showSuccess && countdown > 0) {
             timer = setTimeout(() => setCountdown(countdown - 1), 1000);
         } else if (showSuccess && countdown === 0) {

@@ -70,7 +70,29 @@ This update introduces advanced features for Recruiters (Profile Edit, Settings,
     -   Check Recruiter 'Applications' tab on mobile.
     -   Verify the table **scrolls horizontally** without breaking layout.
 
-### 5. How to Resume Work Later
+### 6. Landing Page & Visuals
+- [x] **Redesigned Landing Page**: Modern, clean aesthetics with white theme.
+- [x] **Cinematic Animations**: Implemented entrance animations for a video-like experience (Zoom, Fade, Slide).
+- [x] **Brand Integration**: Seamlessly integrated Talfor logo with circular styling.
+
+### 7. Study Corner Enhancements
+- [x] **Robust Certificate Generation**: Replaced `html2canvas` with native `jspdf` generation to fix color compatibility issues.
+- [x] **Quiz Logic Updates**:
+    - **Timer**: Added 3-minute countdown per quiz.
+    - **Attempt Limit**: Restricted to 3 attempts per module.
+    - **Navigation**:
+        - **Previous**: Go back to change answers.
+        - **Skip**: Move to next question without answering (labeled "Skip").
+        - **Next**: Move to next question with answer (labeled "Next Question").
+    - **Passing Score**: Raised requirement to 90% for certification.
+- [x] **Content Updates**: Replaced broken modules with reliable topics and videos:
+    - **Digital Forensics Fundamentals** (Edureka)
+    - **Ethical Hacking Fundamentals** (Simplilearn)
+    - **IoT Security Essentials** (Edureka)
+    - Cloud Security (Simplilearn - Retained)
+    - Malware Analysis (HackerSploit - Retained)
+
+### 8. How to Resume Work Later
 1.  **Open VS Code**.
 2.  Go to **File** > **Open Folder**.
 3.  Navigate to: `c:\Users\vishw\.gemini\antigravity\playground\solitary-spicule`.

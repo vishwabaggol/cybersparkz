@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, DollarSign, Briefcase, Clock } from 'lucide-react';
+import { MapPin, Briefcase, Clock } from 'lucide-react';
 
 interface Job {
     id: number;
@@ -28,7 +28,9 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, isApplied = false }) =>
                     <h4 className="text-lg text-blue-600 font-medium">{job.company_name}</h4>
                 </div>
                 <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
-                    {job.experience_level}
+                    {job.experience_level === 'Entry Level' ? 'Freshers' :
+                        job.experience_level === 'Mid Level' ? '1-5 Years' :
+                            job.experience_level === 'Senior Level' ? '5+ Years' : job.experience_level}
                 </span>
             </div>
 
@@ -38,7 +40,6 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, isApplied = false }) =>
                     {job.location}
                 </div>
                 <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-2" />
                     {job.salary_range}
                 </div>
                 <div className="flex items-center">
@@ -60,8 +61,8 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, isApplied = false }) =>
                     onClick={() => !isApplied && onApply(job.id)}
                     disabled={isApplied}
                     className={`flex items-center px-6 py-2 rounded-lg font-medium transition-colors ${isApplied
-                            ? 'bg-green-100 text-green-700 cursor-not-allowed border border-green-200'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-green-100 text-green-700 cursor-not-allowed border border-green-200'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                 >
                     {isApplied ? 'Applied' : 'Apply Now'}

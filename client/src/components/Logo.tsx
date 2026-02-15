@@ -1,7 +1,7 @@
-import React from 'react';
+
 
 export const Logo = ({ className = "h-10 w-10" }: { className?: string }) => (
-    <img src="/logo.jpg" alt="Cybersparkz Logo" className={`${className} object-contain`} />
+    <img src="/logo.jpg" alt="Cybersparkz Logo" className={`${className} object-cover rounded-full`} />
 );
 
 export const LogoText = () => (
