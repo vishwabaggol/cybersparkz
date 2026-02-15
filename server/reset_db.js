@@ -1,0 +1,82 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+
+const dbPath = path.resolve(__dirname, 'cyberlink.db');
+const db = new Database(dbPath);
+
+console.log('Resetting database...');
+
+try {
+    // Disable FKs to allow dropping tables in any order (or just drop dependent ones first)
+    db.pragma('foreign_keys = OFF');
+
+    db.exec(`
+        DROP TABLE IF EXISTS applications;
+        DROP TABLE IF EXISTS jobs;
+        DROP TABLE IF EXISTS profiles;
+        DROP TABLE IF EXISTS recruiters;
+        DROP TABLE IF EXISTS users;
+    `);
+
+    console.log('Tables dropped.');
+
+    db.pragma('foreign_keys = ON');
+
+    // Re-create tables
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE,
+      username TEXT UNIQUE,
+      password TEXT NOT NULL,
+      role TEXT CHECK(role IN ('user', 'recruiter')) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS recruiters (
+      user_id INTEGER PRIMARY KEY,
+      company_name TEXT NOT NULL,
+      company_address TEXT,
+      designation TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS profiles (
+      user_id INTEGER PRIMARY KEY,
+      bio TEXT,
+      skills TEXT,
+      experience_level TEXT,
+      photo_url TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recruiter_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      requirements TEXT,
+      location TEXT,
+      salary_range TEXT,
+      experience_level TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      status TEXT CHECK(status IN ('applied', 'shortlisted', 'rejected')) DEFAULT 'applied',
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    `);
+
+    console.log('Database initialized successfully with username column.');
+
+} catch (error) {
+    console.error('Reset failed:', error);
+}
