@@ -114,6 +114,24 @@ const LandingPage = () => {
 
                     </div>
 
+                    {/* Description */}
+
+                    {/* Description Bubble */}
+                    <div className="relative mt-8 max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: '1.2s', opacity: 0, animationFillMode: 'forwards' }}>
+                        <div className="relative z-10 bg-white/95 backdrop-blur-sm border border-blue-100 p-6 md:p-8 rounded-[2rem] shadow-xl text-center">
+                            <p className="text-gray-600 text-sm md:text-base leading-relaxed font-medium">
+                                "CyberSparkz is the premier platform bridging the gap between elite cybersecurity talent and mission-critical organizations. We empower security professionals to advance their careers while enabling enterprises to fortify their teams with top-tier experts. Join the community that is securing the digital future."
+                            </p>
+
+                        </div>
+                        {/* Decorative elements for bubble effect */}
+                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-b border-r border-blue-100 rotate-45 z-0 shadow-sm"></div>
+                        <div className="absolute -z-10 top-2 -right-2 w-full h-full bg-blue-50/50 rounded-[2rem] transform rotate-1"></div>
+                    </div>
+
+
+
+
 
 
                     {/* Action Buttons */}
@@ -148,7 +166,7 @@ const LandingPage = () => {
                     <p>© {new Date().getFullYear()} Cybersparkz Inc. All rights reserved.</p>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

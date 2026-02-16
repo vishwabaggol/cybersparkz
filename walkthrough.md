@@ -3,6 +3,16 @@
 ## Overview
 This update introduces advanced features for Recruiters (Profile Edit, Settings, Interview Scheduling, **Photo Management**) and allows Job Seekers to track their application status.
 
+### Version 1.2
+- Fixed Recruiter Sidebar Full Height Issue
+- Fixed Duplicate Password Eye Toggle (Hidden native browser toggle)
+- Reduced Signup page title font size
+- Removed bold styling from Signup page title
+- Added Mobile OTP support for password reset (Simulated SMS)
+- Updated password reset success message to be more descriptive
+- Integrated Twilio SMS Gateway (requires credentials in .env)
+- Verified Interview Notification System (Resume download, Dashboard alerts, Email)
+
 ## Verification Steps
 
 ### 1. Recruiter Dashboard Features

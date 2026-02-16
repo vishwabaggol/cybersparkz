@@ -9,14 +9,55 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 
+// Twilio Configuration
+const twilio = require('twilio');
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+// Initialize Client only if creds exist to avoid startup crash if env vars missing
+let client = null;
+try {
+    if (accountSid && authToken && accountSid.startsWith('AC')) {
+        client = twilio(accountSid, authToken);
+    } else {
+        console.warn('Twilio credentials missing or invalid (AccountSID must start with AC). SMS features disabled.');
+    }
+} catch (err) {
+    console.error('Failed to initialize Twilio client:', err.message);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.JWT_SECRET || 'secret';
 
+const helmet = require('helmet');
+const xss = require('xss');
+
+app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static('uploads'));
+
+// Input Sanitization Middleware
+const sanitizeInput = (req, res, next) => {
+    const sanitize = (obj) => {
+        for (const key in obj) {
+            if (typeof obj[key] === 'string') {
+                obj[key] = xss(obj[key]);
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                sanitize(obj[key]);
+            }
+        }
+    };
+
+    if (req.body) sanitize(req.body);
+    if (req.query) sanitize(req.query);
+    if (req.params) sanitize(req.params);
+
+    next();
+};
+
+app.use(sanitizeInput);
 
 // Configure Multer for Resume Uploads
 const storage = multer.diskStorage({
@@ -98,6 +139,35 @@ const sendInterviewEmail = async (to, applicantName, jobTitle, interviewDate, no
         return true;
     } catch (error) {
         console.error('Error sending email:', error);
+        return false;
+    }
+};
+
+// Function to send OTP email
+const sendOtpEmail = async (to, otp) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER || 'your-email@gmail.com',
+        to: to,
+        subject: `Password Reset OTP - CyberSparkz`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4F46E5;">Password Reset Request</h2>
+                <p>Use the following OTP to reset your password. This OTP is valid for 15 minutes.</p>
+                <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                    <h1 style="letter-spacing: 5px; color: #333;">${otp}</h1>
+                </div>
+                <p>If you didn't request this, please ignore this email.</p>
+                <p>Best regards,<br/>CyberSparkz Team</p>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('OTP email sent to:', to);
+        return true;
+    } catch (error) {
+        console.error('Error sending OTP email:', error);
         return false;
     }
 };
@@ -263,6 +333,157 @@ app.post('/api/auth/2fa/disable', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error disabling 2FA' });
+    }
+});
+
+app.post('/api/auth/request-otp-reset', async (req, res) => {
+    const { identifier } = req.body; // email or username
+
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(identifier, identifier);
+        console.log(`[DEBUG] Forgot Password Request for: ${identifier}. User found: ${!!user}`);
+        if (!user || !user.email) {
+            return res.status(400).json({ error: 'User not found with that email/username' });
+        }
+
+        // Generate 6-digit OTP
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(`[DEBUG] Generated OTP for ${identifier}: ${otp}`);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
+
+        // Store OTP (always link to email for internal verification)
+        db.prepare('INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)').run(user.email, otp, expiresAt);
+
+        // Determine if identifier looks like a mobile number (digits only, length 10-15)
+        const isMobile = /^\d{10,15}$/.test(identifier);
+
+        // If user entered username (which might be mobile) or if we want to support SMS for usernames:
+        // In this app, username IS the mobile number for many users. 
+        // We'll simulate SMS if the input identifier matches the username, OR if it looks like a mobile number.
+
+        if (identifier === user.username || isMobile) {
+            if (client) {
+                try {
+                    const to = identifier.startsWith('+') ? identifier : `+91${identifier}`;
+                    await client.messages.create({
+                        body: `Your CyberSparkz OTP is: ${otp}`,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: to
+                    });
+                    console.log(`[SMS] OTP sent to ${to}`);
+                } catch (smsError) {
+                    console.error('Error sending SMS:', smsError);
+                }
+            } else {
+                console.log(`[SIMULATED SMS] Sending OTP ${otp} to mobile/username: ${identifier} (Twilio not configured)`);
+            }
+        }
+
+        // Always send email if we have it, OR just send email if it's NOT a mobile login?
+        // Requirement says "otp sent to the mobile number... by using that number otp should be sent"
+        // So if they entered mobile, we send to mobile (simulated).
+        // if they entered email, we send to email.
+
+        if (identifier.includes('@')) {
+            await sendOtpEmail(user.email, otp);
+        } else {
+            // It's a username/mobile. We already logged it above.
+            // But we can also send email as backup if desired? 
+            // The prompt implies we should send to mobile *using that number*. 
+            // So console log is the "sending".
+        }
+
+        // RETURN OTP IN RESPONSE (CAPTCHA STYLE)
+        res.json({ success: true, message: 'OTP Generated', otp: otp });
+    } catch (error) {
+        console.error('Error in forgot-password:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { email, identifier, otp, newPassword } = req.body; // accept email or identifier
+
+    try {
+        // Verify user exists
+        // If 'email' is provided, use it. If 'identifier' is provided, look up user to get email.
+        let userEmail = email;
+        let user;
+
+        if (identifier) {
+            user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(identifier, identifier);
+            if (user) userEmail = user.email;
+        } else if (email) {
+            user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+            if (user) userEmail = user.email;
+        }
+
+        if (!user || !userEmail) {
+            return res.status(400).json({ error: 'Invalid request' });
+        }
+
+        // Verify OTP
+        const resetRecord = db.prepare(`
+            SELECT * FROM password_resets 
+            WHERE email = ? AND otp = ? AND expires_at > ?
+            ORDER BY created_at DESC LIMIT 1
+        `).get(userEmail, otp, new Date().toISOString());
+
+        if (!resetRecord) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update User Password
+        db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+
+        // clear used OTP
+        db.prepare('DELETE FROM password_resets WHERE id = ?').run(resetRecord.id);
+
+        res.json({ success: true, message: 'Password reset successfully' });
+
+    } catch (error) {
+        console.error('Error in reset-password:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+    const { email, identifier, otp } = req.body;
+
+    try {
+        let userEmail = email;
+        let user;
+
+        if (identifier) {
+            user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(identifier, identifier);
+            if (user) userEmail = user.email;
+        } else if (email) {
+            user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+            if (user) userEmail = user.email;
+        }
+
+        if (!user || !userEmail) {
+            return res.status(400).json({ error: 'Invalid request' });
+        }
+
+        const resetRecord = db.prepare(`
+            SELECT * FROM password_resets 
+            WHERE email = ? AND otp = ? AND expires_at > ?
+            ORDER BY created_at DESC LIMIT 1
+        `).get(userEmail, otp, new Date().toISOString());
+
+        if (!resetRecord) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+
+        res.json({ success: true, message: 'OTP Verified' });
+    } catch (error) {
+        console.error('Error in verify-otp:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

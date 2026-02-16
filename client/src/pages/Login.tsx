@@ -228,7 +228,7 @@ const Login = () => {
                             </button>
 
                             <div className="text-center mt-4">
-                                <button type="button" onClick={() => alert('Reset password link sent to email!')} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">Forgot password?</button>
+                                <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-gray-700 hover:underline">Forgot password?</Link>
                             </div>
                         </>
                     )}

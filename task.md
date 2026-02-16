@@ -20,16 +20,16 @@
 - [x] Remove Dollar Symbol from Job List
 - [x] Add Application Preview Modal (Recruiter)
 - [x] Remove Resume Preview from Application Form
+- [x] Fix Duplicate Password Eye Toggle (Hide native browser toggle)
+
+- [x] Updated password reset success message to be more descriptive
+- [x] Integrated SMS Gateway (Twilio)
+- [x] Interview Notification System (Resume Download, Dashboard Alerts, Email)
 
 ## In Progress 🚧
-- [ ] Interview Notification System
-  - [ ] Add resume download to application preview modal
-  - [ ] Show interview details in user dashboard
-  - [ ] Add popup notification when interview is scheduled
-  - [ ] Send email notification to user
-  - [ ] Update interview scheduling to trigger notifications
 
 ## Pending Features 📋
 - [ ] Study Corner (Cybersecurity topics, quizzes, e-certificates)
 - [ ] Advanced filtering and search
 - [ ] User profile enhancements
+- [x] Implement XSS Protection (Helmet, Input Sanitization)

@@ -7,6 +7,7 @@ import Signup from './pages/Signup';
 import DashboardUser from './pages/DashboardUser';
 import DashboardRecruiter from './pages/DashboardRecruiter';
 import LandingPage from './pages/LandingPage';
+import ForgotPassword from './pages/ForgotPassword';
 
 const ProtectedRoute = ({ children, allowedRole }: { children: React.ReactNode, allowedRole?: 'user' | 'recruiter' }) => {
   const { user, isLoading } = useAuth();
@@ -32,6 +33,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route
               path="/dashboard"
               element={

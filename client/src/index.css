@@ -6,3 +6,9 @@
     @apply bg-gray-50 text-gray-900;
   }
 }
+
+/* Hide default browser password reveal button */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}

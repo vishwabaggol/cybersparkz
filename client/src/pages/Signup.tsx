@@ -114,7 +114,7 @@ const Signup = () => {
                 <div className="flex justify-center">
                     <LogoText />
                 </div>
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                <h2 className="mt-6 text-center text-2xl font-normal text-gray-900">
                     Create your account
                 </h2>
 
