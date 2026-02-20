@@ -2,16 +2,327 @@ import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LogOut, User, BookOpen, Briefcase, Settings, Search, Award, CheckCircle, FileText, Calendar, Upload, Menu, X, Sun, Moon, Bell } from 'lucide-react';
+import { LogOut, User, Users, BookOpen, Briefcase, Settings, Search, Award, CheckCircle, FileText, Calendar, Upload, Menu, X, Sun, Moon, Bell, ExternalLink, Trash2 } from 'lucide-react';
 
 
 import JobCard from '../components/JobCard';
-import { studyModules } from '../data/studyModules';
+import { getStudyModules } from '../data/studyModules';
 import { useNavigate } from 'react-router-dom';
 import landingLogo from '../assets/landing-logo.jpg';
 
+const translations: any = {
+    'English (India)': {
+        nav: {
+            jobs: 'Find Jobs',
+            profile: 'My Profile',
+            study: 'Study Corner',
+            network: 'My Network',
+            settings: 'Settings',
+            signout: 'Sign Out'
+        },
+        headers: {
+            jobs: 'Find Your Dream Job',
+            applications: 'My Applications',
+            profile: 'My Profile',
+            network: 'My Network',
+            study: 'Study Corner',
+            settings: 'Settings'
+        },
+        jobs: {
+            searchPlaceholder: 'Search jobs...',
+            filterAll: 'All Levels',
+            filterFresher: 'Freshers',
+            filter1to5: '1-5 Years',
+            filter5plus: '5+ Years',
+            noJobs: 'No jobs found matching your criteria.'
+        },
+        profile: {
+            save: 'Save Changes',
+            edit: 'Edit Profile',
+            cancel: 'Cancel',
+            socialLinks: 'Social Links',
+            aboutMe: 'About Me',
+            bio: 'Bio',
+            skills: 'Skills',
+            experienceLevel: 'Experience Level',
+            education: 'Education',
+            certifications: 'Certifications',
+            resume: 'Resume',
+            add: '+ Add',
+            remove: 'Remove',
+            viewResume: 'View Resume',
+            noBio: 'No bio added yet.',
+            noSkills: 'No skills added',
+            notSpecified: 'Not specified',
+            noEducation: 'No education details added.',
+            noCertifications: 'No certifications added.',
+            noResume: 'No resume link provided.',
+            noLinks: 'No links added',
+            linkedinPlaceholder: 'LinkedIn URL',
+            githubPlaceholder: 'GitHub URL',
+            skillsPlaceholder: 'e.g. React, Node.js, Cybersecurity',
+            degreePlaceholder: 'Degree',
+            institutionPlaceholder: 'Institution',
+            yearPlaceholder: 'Year',
+            certNamePlaceholder: 'Certification Name',
+            issuerPlaceholder: 'Issuer',
+            resumeLinkPlaceholder: 'Link to Resume (GDrive, Dropbox, etc)'
+        },
+        settings: {
+            appearance: 'Appearance',
+            appearance_desc: 'Choose your preferred theme',
+            light_mode: 'Light Mode',
+            dark_mode: 'Dark Mode',
+            regional: 'Regional Settings',
+            language: 'Language',
+            language_desc: 'Choose your preferred language',
+            privacy: 'Privacy & Security',
+            public_profile: 'Public Profile',
+            public_profile_desc: 'Allow recruiters to find you.'
+        },
+        study: {
+            learningModules: 'Learning Modules',
+            yourProgress: 'Your Progress',
+            courseCompletion: 'Course Completion',
+            start: 'Start',
+            review: 'Review',
+            returnToModules: 'Return to Modules',
+            filterAll: 'All Levels',
+            filterBeginner: 'Beginner',
+            filterIntermediate: 'Intermediate',
+            filterGraduate: 'Graduate'
+        },
+        network: {
+            invitations: 'Invitations',
+            my_network: 'My Network',
+            people_you_may_know: 'People you may know',
+            connect: 'Connect',
+            accept: 'Accept',
+            ignore: 'Ignore',
+            pending: 'Pending',
+            message: 'Message',
+            no_invitations: 'No pending invitations',
+            no_connections: 'No connections yet',
+            no_suggestions: 'No suggestions available',
+            discover: 'Discover'
+        },
+        chat: {
+            title: 'Chat',
+            placeholder: 'Type a message...',
+            send: 'Send',
+            noMessages: 'No messages yet. Say hello!'
+        }
+    },
+    'Hindi': {
+        nav: {
+            jobs: 'नौकरियां खोजें',
+            profile: 'मेरी प्रोफ़ाइल',
+            study: 'अध्ययन कोना',
+            network: 'मेरा नेटवर्क',
+            settings: 'सेटिंग्स',
+            signout: 'साइन आउट'
+        },
+        headers: {
+            jobs: 'अपनी सपनों की नौकरी खोजें',
+            applications: 'मेरे आवेदन',
+            profile: 'मेरी प्रोफ़ाइल',
+            network: 'मेरा नेटवर्क',
+            study: 'अध्ययन कोना',
+            settings: 'सेटिंग्स'
+        },
+        jobs: {
+            searchPlaceholder: 'नौकरियां खोजें...',
+            filterAll: 'सभी स्तर',
+            filterFresher: 'फ्रेशर्स',
+            filter1to5: '1-5 साल',
+            filter5plus: '5+ साल',
+            noJobs: 'आपके मानदंडों से मेल खाने वाली कोई नौकरी नहीं मिली।'
+        },
+        profile: {
+            save: 'बदलाव सहेजें',
+            edit: 'प्रोफ़ाइल संपादित करें',
+            cancel: 'रद्द करें',
+            socialLinks: 'सोशल लिंक्स',
+            aboutMe: 'मेरे बारे में',
+            bio: 'बायो',
+            skills: 'कौशल',
+            experienceLevel: 'अनुभव स्तर',
+            education: 'शिक्षा',
+            certifications: 'प्रमाणपत्र',
+            resume: 'रिज्यूमे',
+            add: '+ जोड़ें',
+            remove: 'हटाएं',
+            viewResume: 'रिज्यूमे देखें',
+            noBio: 'अभी तक कोई बायो नहीं जोड़ा गया।',
+            noSkills: 'कोई कौशल नहीं जोड़ा गया',
+            notSpecified: 'निर्दिष्ट नहीं',
+            noEducation: 'कोई शिक्षा विवरण नहीं जोड़ा गया।',
+            noCertifications: 'कोई प्रमाणपत्र नहीं जोड़ा गया।',
+            noResume: 'कोई रिज्यूमे लिंक नहीं दिया गया।',
+            noLinks: 'कोई लिंक नहीं जोड़ा गया',
+            linkedinPlaceholder: 'LinkedIn URL',
+            githubPlaceholder: 'GitHub URL',
+            skillsPlaceholder: 'जैसे React, Node.js, Cybersecurity',
+            degreePlaceholder: 'डिग्री',
+            institutionPlaceholder: 'संस्थान',
+            yearPlaceholder: 'वर्ष',
+            certNamePlaceholder: 'प्रमाणपत्र का नाम',
+            issuerPlaceholder: 'जारीकर्ता',
+            resumeLinkPlaceholder: 'रिज्यूमे लिंक (GDrive, Dropbox, आदि)'
+        },
+        settings: {
+            appearance: 'रूप-रंग',
+            appearance_desc: 'अपनी पसंदीदा थीम चुनें',
+            light_mode: 'लाइट मोड',
+            dark_mode: 'डार्क मोड',
+            regional: 'क्षेत्रीय सेटिंग्स',
+            language: 'भाषा',
+            language_desc: 'अपनी पसंदीदा भाषा चुनें',
+            privacy: 'गोपनीयता और सुरक्षा',
+            public_profile: 'सार्वजनिक प्रोफ़ाइल',
+            public_profile_desc: 'भर्तीकर्ताओं को आपको खोजने की अनुमति दें।'
+        },
+        study: {
+            learningModules: 'अध्ययन मॉड्यूल',
+            yourProgress: 'आपकी प्रगति',
+            courseCompletion: 'पाठ्यक्रम पूरा होना',
+            start: 'शुरू करें',
+            review: 'समीक्षा करें',
+            returnToModules: 'मॉड्यूल पर वापस जाएं',
+            filterAll: 'सभी स्तर',
+            filterBeginner: 'शुरुआती (Beginner)',
+            filterIntermediate: 'मध्यम (Intermediate)',
+            filterGraduate: 'स्नातक (Graduate)'
+        },
+        network: {
+            invitations: 'निमंत्रण',
+            my_network: 'मेरा नेटवर्क',
+            people_you_may_know: 'जिन्हें आप जानते होंगे',
+            connect: 'कनेक्ट करें',
+            accept: 'स्वीकार करें',
+            ignore: 'अनदेखा करें',
+            pending: 'लंबित',
+            message: 'संदेश',
+            no_invitations: 'कोई लंबित निमंत्रण नहीं',
+            no_connections: 'अभी तक कोई कनेक्शन नहीं',
+            no_suggestions: 'कोई सुझाव उपलब्ध नहीं',
+            discover: 'खोजें'
+        },
+        chat: {
+            title: 'चैट',
+            placeholder: 'एक संदेश लिखें...',
+            send: 'भेजें',
+            noMessages: 'अभी तक कोई संदेश नहीं। नमस्ते कहें!'
+        }
+    },
+    'Kannada': {
+        nav: {
+            jobs: 'ಉದ್ಯೋಗಗಳನ್ನು ಹುಡುಕಿ',
+            profile: 'ನನ್ನ ಪ್ರೊಫೈಲ್',
+            study: 'ಅಧ್ಯಯನ ಮೂಲೆ',
+            network: 'ನನ್ನ ನೆಟ್‌ವರ್ಕ್',
+            settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+            signout: 'ಸೈನ್ ಔಟ್'
+        },
+        headers: {
+            jobs: 'ನಿಮ್ಮ ಕನಸಿನ ಉದ್ಯೋಗವನ್ನು ಹುಡುಕಿ',
+            applications: 'ನನ್ನ ಅರ್ಜಿಗಳು',
+            profile: 'ನನ್ನ ಪ್ರೊಫೈಲ್',
+            network: 'ನನ್ನ ನೆಟ್‌ವರ್ಕ್',
+            study: 'ಅಧ್ಯಯನ ಮೂಲೆ',
+            settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು'
+        },
+        jobs: {
+            searchPlaceholder: 'ಉದ್ಯೋಗಗಳನ್ನು ಹುಡುಕಿ...',
+            filterAll: 'ಎಲ್ಲಾ ಹಂತಗಳು',
+            filterFresher: 'ಫ್ರೆಶರ್ಸ್',
+            filter1to5: '1-5 ವರ್ಷಗಳು',
+            filter5plus: '5+ ವರ್ಷಗಳು',
+            noJobs: 'ನಿಮ್ಮ ಮಾನದಂಡಗಳಿಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಯಾವುದೇ ಉದ್ಯೋಗಗಳು ಕಂಡುಬಂದಿಲ್ಲ.'
+        },
+        profile: {
+            save: 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ',
+            edit: 'ಪ್ರೊಫೈಲ್ ಎಡಿಟ್ ಮಾಡಿ',
+            cancel: 'ರದ್ದುಮಾಡಿ',
+            socialLinks: 'ಸಾಮಾಜಿಕ ಲಿಂಕ್‌ಗಳು',
+            aboutMe: 'ನನ್ನ ಬಗ್ಗೆ',
+            bio: 'ಬಯೋ',
+            skills: 'ಕೌಶಲ್ಯಗಳು',
+            experienceLevel: 'ಅನುಭವದ ಮಟ್ಟ',
+            education: 'ಶಿಕ್ಷಣ',
+            certifications: 'ಪ್ರಮಾಣಪತ್ರಗಳು',
+            resume: 'ರೆಸ್ಯೂಮ್',
+            add: '+ ಸೇರಿಸಿ',
+            remove: 'ತೆಗೆದುಹಾಕಿ',
+            viewResume: 'ರೆಸ್ಯೂಮ್ ವೀಕ್ಷಿಸಿ',
+            noBio: 'ಇನ್ನೂ ಯಾವುದೇ ಬಯೋ ಸೇರಿಸಲಾಗಿಲ್ಲ.',
+            noSkills: 'ಯಾವುದೇ ಕೌಶಲ್ಯಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ',
+            notSpecified: 'ನಿರ್ದಿಷ್ಟಪಡಿಸಲಾಗಿಲ್ಲ',
+            noEducation: 'ಯಾವುದೇ ಶಿಕ್ಷಣ ವಿವರಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.',
+            noCertifications: 'ಯಾವುದೇ ಪ್ರಮಾಣಪತ್ರಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ.',
+            noResume: 'ಯಾವುದೇ ರೆಸ್ಯೂಮ್ ಲಿಂಕ್ ಒದಗಿಸಲಾಗಿಲ್ಲ.',
+            noLinks: 'ಯಾವುದೇ ಲಿಂಕ್‌ಗಳನ್ನು ಸೇರಿಸಲಾಗಿಲ್ಲ',
+            linkedinPlaceholder: 'LinkedIn URL',
+            githubPlaceholder: 'GitHub URL',
+            skillsPlaceholder: 'ಉದಾ. React, Node.js, Cybersecurity',
+            degreePlaceholder: 'ಪದವಿ',
+            institutionPlaceholder: 'ಸಂಸ್ಥೆ',
+            yearPlaceholder: 'ವರ್ಷ',
+            certNamePlaceholder: 'ಪ್ರಮಾಣಪತ್ರದ ಹೆಸರು',
+            issuerPlaceholder: 'ನೀಡುವವರು',
+            resumeLinkPlaceholder: 'ರೆಸ್ಯೂಮ್ ಲಿಂಕ್ (GDrive, Dropbox, ಇತ್ಯಾದಿ)'
+        },
+        settings: {
+            appearance: 'ಗೋಚರತೆ',
+            appearance_desc: 'ನಿಮ್ಮ ಆದ್ಯತೆಯ ಥೀಮ್ ಆಯ್ಕೆಮಾಡಿ',
+            light_mode: 'ಲೈಟ್ ಮೋಡ್',
+            dark_mode: 'ಡಾರ್ಕ್ ಮೋಡ್',
+            regional: 'ಪ್ರಾದೇಶಿಕ ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+            language: 'ಭಾಷೆ',
+            language_desc: 'ನಿಮ್ಮ ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆರಿಸಿ',
+            privacy: 'ಗೌಪ್ಯತೆ ಮತ್ತು ಭದ್ರತೆ',
+            public_profile: 'ಸಾರ್ವಜನಿಕ ಪ್ರೊಫೈಲ್',
+            public_profile_desc: 'ನೇಮಕಾತಿದಾರರಿಗೆ ನಿಮ್ಮನ್ನು ಹುಡುಕಲು ಅನುಮತಿಸಿ.'
+        },
+        study: {
+            learningModules: 'ಕಲಿಕಾ ಮಾಡ್ಯೂಲ್‌ಗಳು',
+            yourProgress: 'ನಿಮ್ಮ ಪ್ರಗತಿ',
+            courseCompletion: 'ಕೋರ್ಸ್ ಪೂರ್ಣಗೊಳಿಸುವಿಕೆ',
+            start: 'ಪ್ರಾರಂಭಿಸಿ',
+            review: 'ಪರಿಶೀಲಿಸಿ',
+            returnToModules: 'ಮಾಡ್ಯೂಲ್‌ಗಳಿಗೆ ಹಿಂತಿರುಗಿ',
+            filterAll: 'ಎಲ್ಲಾ ಹಂತಗಳು',
+            filterBeginner: 'ಆರಂಭಿಕ (Beginner)',
+            filterIntermediate: 'ಮಧ್ಯಂತರ (Intermediate)',
+            filterGraduate: 'ಪದವಿ (Graduate)'
+        },
+        network: {
+            invitations: 'ಆಹ್ವಾನಗಳು',
+            my_network: 'ನನ್ನ ನೆಟ್‌ವರ್ಕ್',
+            people_you_may_know: 'ನಿಮಗೆ ತಿಳಿದಿರಬಹುದಾದ ಜನರು',
+            connect: 'ಸಂಪರ್ಕಿಸಿ',
+            accept: 'ಸ್ವೀಕರಿಸಿ',
+            ignore: 'ನಿರ್ಲಕ್ಷಿಸಿ',
+            pending: 'ಬಾಕಿ ಉಳಿದಿದೆ',
+            message: 'ಸಂದೇಶ',
+            no_invitations: 'ಯಾವುದೇ ಬಾಕಿ ಆಹ್ವಾನಗಳಿಲ್ಲ',
+            no_connections: 'ಇನ್ನೂ ಯಾವುದೇ ಸಂಪರ್ಕಗಳಿಲ್ಲ',
+            no_suggestions: 'ಯಾವುದೇ ಸಲಹೆಗಳಿಲ್ಲ',
+            discover: 'ಅನ್ವೇಷಿಸಿ'
+        },
+        chat: {
+            title: 'ಚಾಟ್',
+            placeholder: 'ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...',
+            send: 'ಕಳುಹಿಸಿ',
+            noMessages: 'ಇನ್ನೂ ಯಾವುದೇ ಸಂದೇಶಗಳಿಲ್ಲ. ಹಲೋ ಹೇಳಿ!'
+        }
+    }
+};
+
+
 const DashboardUser = () => {
-    const { user, logout, token, setup2FA, verify2FA, disable2FA } = useAuth();
+    const { user, logout, token } = useAuth();
+
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
@@ -21,6 +332,7 @@ const DashboardUser = () => {
     const [userApplications, setUserApplications] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [experienceFilter, setExperienceFilter] = useState('All');
+    const [studyLevelFilter, setStudyLevelFilter] = useState('All');
 
     // Profile State
     const [profile, setProfile] = useState({
@@ -28,7 +340,11 @@ const DashboardUser = () => {
         bio: '',
         skills: '',
         experience_level: '',
-        photo_url: ''
+        photo_url: '',
+        social_links: { linkedin: '', github: '' },
+        education: [] as any[],
+        certifications: [] as any[],
+        resume_url: ''
     });
 
     // ...
@@ -36,12 +352,32 @@ const DashboardUser = () => {
     // Initialize profile from user data
     useEffect(() => {
         if (user) {
+            let parsedSocialLinks = { linkedin: '', github: '' };
+            let parsedEducation = [];
+            let parsedCertifications = [];
+
+            try {
+                if (user.social_links) parsedSocialLinks = JSON.parse(user.social_links);
+            } catch (e) { console.error("Error parsing social links", e); }
+
+            try {
+                if (user.education) parsedEducation = JSON.parse(user.education);
+            } catch (e) { console.error("Error parsing education", e); }
+
+            try {
+                if (user.certifications) parsedCertifications = JSON.parse(user.certifications);
+            } catch (e) { console.error("Error parsing certifications", e); }
+
             setProfile({
                 name: user.name || '',
                 bio: user.bio || '',
                 skills: user.skills || '',
                 experience_level: user.experience_level || '',
-                photo_url: user.photo_url || ''
+                photo_url: user.photo_url || '',
+                social_links: parsedSocialLinks,
+                education: parsedEducation,
+                certifications: parsedCertifications,
+                resume_url: user.resume_url || ''
             });
             setLanguage(user.language || 'English (India)');
         }
@@ -53,16 +389,30 @@ const DashboardUser = () => {
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [language, setLanguage] = useState('English (India)');
 
+    const studyModules = getStudyModules(language);
+
+    // Translation helper function
+    const t = (path: string) => {
+        const keys = path.split('.');
+        let value: any = translations[language as keyof typeof translations];
+        for (const key of keys) {
+            if (value && typeof value === 'object') {
+                value = value[key];
+            } else {
+                return path; // Fallback to path if translation not found
+            }
+        }
+        return value || path;
+    };
+
+
     // Study State
     const [completedTopics, setCompletedTopics] = useState<number[]>([]);
 
     // Session Timer
     const [timeLeft, setTimeLeft] = useState(600); // 10 minutes session
 
-    // 2FA State
-    const [showTwoFAModal, setShowTwoFAModal] = useState(false);
-    const [twoFASecret, setTwoFASecret] = useState<{ secret: string, imageUrl: string } | null>(null);
-    const [twoFACode, setTwoFACode] = useState('');
+
 
     // Application State
     const [applicationJob, setApplicationJob] = useState<any | null>(null);
@@ -76,6 +426,18 @@ const DashboardUser = () => {
     });
     const [interviewNotifications, setInterviewNotifications] = useState<any[]>([]);
     const [showInterviewAlert, setShowInterviewAlert] = useState(false);
+
+    // Network State
+    const [connections, setConnections] = useState<any[]>([]);
+    const [exploreUsers, setExploreUsers] = useState<any[]>([]);
+
+    // Chat State
+    const [openChat, setOpenChat] = useState(false);
+    const [chatUser, setChatUser] = useState<any>(null);
+    const [messages, setMessages] = useState<any[]>([]);
+    const [messageInput, setMessageInput] = useState('');
+
+
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -112,6 +474,9 @@ const DashboardUser = () => {
             fetchUserApplications();
         } else if (activeTab === 'applications') {
             fetchUserApplications();
+        } else if (activeTab === 'network') {
+            fetchConnections();
+            fetchExploreUsers();
         }
     }, [activeTab]);
 
@@ -161,6 +526,130 @@ const DashboardUser = () => {
             console.error('Failed to fetch jobs', error);
         }
     };
+
+    // Network Functions
+    const fetchConnections = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/connections', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setConnections(data);
+        } catch (error) {
+            console.error('Failed to fetch connections', error);
+        }
+    };
+
+    const fetchExploreUsers = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/users/explore', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setExploreUsers(data);
+        } catch (error) {
+            console.error('Failed to fetch explore users', error);
+        }
+    };
+
+    const sendConnectionRequest = async (receiverId: number) => {
+        try {
+            const response = await fetch('http://localhost:3000/api/connections/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ receiver_id: receiverId })
+            });
+            if (response.ok) {
+                alert('Connection request sent!');
+                fetchConnections();
+                fetchExploreUsers();
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Failed to send request');
+            }
+        } catch (error) {
+            console.error('Error sending connection request', error);
+        }
+    };
+
+    const updateConnectionStatus = async (connectionId: number, status: string) => {
+        try {
+            const response = await fetch('http://localhost:3000/api/connections/respond', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ connection_id: connectionId, status })
+            });
+            if (response.ok) {
+                alert(`Connection ${status}!`);
+                fetchConnections();
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Failed to update connection');
+            }
+        } catch (error) {
+            console.error('Error updating connection', error);
+        }
+    };
+
+    // Chat Functions
+    const fetchMessages = async (userId: number) => {
+        try {
+            const response = await fetch(`http://localhost:3000/api/messages/${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setMessages(data);
+        } catch (error) {
+            console.error('Failed to fetch messages', error);
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!messageInput.trim() || !chatUser) return;
+
+        try {
+            const response = await fetch('http://localhost:3000/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    receiver_id: chatUser.id,
+                    content: messageInput
+                })
+            });
+
+            if (response.ok) {
+                setMessageInput('');
+                fetchMessages(chatUser.id);
+            } else {
+                const data = await response.json();
+                if (response.status === 403) {
+                    alert('⚠️ You can only send messages to your connections. Please send a connection request first.');
+                    setOpenChat(false);
+                } else {
+                    alert(data.error || 'Failed to send message');
+                }
+            }
+        } catch (error) {
+            console.error('Error sending message', error);
+            alert('Network error. Please check your connection and try again.');
+        }
+    };
+
+    const openChatWindow = (user: any) => {
+        setChatUser(user);
+        setOpenChat(true);
+        fetchMessages(user.id);
+    };
+
 
     const handleApplyClick = (job: any) => {
         setApplicationJob(job);
@@ -259,6 +748,45 @@ const DashboardUser = () => {
         }
     };
 
+    const handleAddEducation = () => {
+        setProfile({
+            ...profile,
+            education: [...profile.education, { degree: '', institution: '', year: '' }]
+        });
+    };
+
+    const handleRemoveEducation = (index: number) => {
+        const newEducation = [...profile.education];
+        newEducation.splice(index, 1);
+        setProfile({ ...profile, education: newEducation });
+    };
+
+    const handleEducationChange = (index: number, field: string, value: string) => {
+        const newEducation = [...profile.education];
+        newEducation[index][field] = value;
+        setProfile({ ...profile, education: newEducation });
+    };
+
+    const handleAddCertification = () => {
+        setProfile({
+            ...profile,
+            certifications: [...profile.certifications, { name: '', issuer: '', year: '' }]
+        });
+    };
+
+    const handleRemoveCertification = (index: number) => {
+        const newCertifications = [...profile.certifications];
+        newCertifications.splice(index, 1);
+        setProfile({ ...profile, certifications: newCertifications });
+    };
+
+    const handleCertificationChange = (index: number, field: string, value: string) => {
+        const newCertifications = [...profile.certifications];
+        newCertifications[index][field] = value;
+        setProfile({ ...profile, certifications: newCertifications });
+    };
+
+
 
 
 
@@ -329,14 +857,13 @@ const DashboardUser = () => {
             console.log('Response data:', data);
 
             if (response.ok) {
-                alert('Language preference saved successfully!');
+                console.log('Language preference saved successfully!');
             } else {
                 console.error('Failed response:', data);
-                alert(`Failed to save language preference: ${data.error || 'Unknown error'}`);
+                console.error(`Failed to save language preference: ${data.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error saving language', error);
-            alert('Error saving language preference');
         }
     };
 
@@ -378,28 +905,7 @@ const DashboardUser = () => {
 
     const activeModule = studyModules.find(m => m.id === activeModuleId);
 
-    const handleEnable2FA = async () => {
-        try {
-            const data = await setup2FA();
-            setTwoFASecret(data);
-            setShowTwoFAModal(true);
-        } catch (error) {
-            console.error(error);
-            alert("Failed to initiate 2FA setup");
-        }
-    };
 
-    const submit2FAVerification = async () => {
-        try {
-            await verify2FA(twoFACode);
-            setShowTwoFAModal(false);
-            setTwoFASecret(null);
-            setTwoFACode('');
-            alert("Two-Factor Authentication enabled successfully!");
-        } catch (error) {
-            alert("Invalid verification code. Please try again.");
-        }
-    };
 
 
 
@@ -621,7 +1127,7 @@ const DashboardUser = () => {
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                         <Briefcase className="h-5 w-5" />
-                        <span>Find Jobs</span>
+                        <span>{t('nav.jobs')}</span>
                     </button>
                     <button
                         onClick={() => { setActiveTab('profile'); setActiveModuleId(null); }}
@@ -630,7 +1136,16 @@ const DashboardUser = () => {
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                         <User className="h-5 w-5" />
-                        <span>My Profile</span>
+                        <span>{t('nav.profile')}</span>
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('network'); setActiveModuleId(null); }}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'network'
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                    >
+                        <Users className="h-5 w-5" />
+                        <span>{t('nav.network')}</span>
                     </button>
                     <button
                         onClick={() => { setActiveTab('study'); setActiveModuleId(null); }}
@@ -639,7 +1154,7 @@ const DashboardUser = () => {
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                         <BookOpen className="h-5 w-5" />
-                        <span>Study Corner</span>
+                        <span>{t('nav.study')}</span>
                     </button>
                     <button
                         onClick={() => { setActiveTab('settings'); setActiveModuleId(null); }}
@@ -648,7 +1163,7 @@ const DashboardUser = () => {
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                         <Settings className="h-5 w-5" />
-                        <span>Settings</span>
+                        <span>{t('nav.settings')}</span>
                     </button>
                 </nav>
 
@@ -921,6 +1436,182 @@ const DashboardUser = () => {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Social Links */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Social Links</label>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        {isEditingProfile ? (
+                                                            <input
+                                                                type="text"
+                                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2"
+                                                                value={profile.social_links?.linkedin || ''}
+                                                                onChange={(e) => setProfile({ ...profile, social_links: { ...profile.social_links, linkedin: e.target.value } })}
+                                                                placeholder="LinkedIn URL"
+                                                            />
+                                                        ) : (
+                                                            profile.social_links?.linkedin ? (
+                                                                <a href={profile.social_links.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center">
+                                                                    <span className="mr-2">LinkedIn</span>
+                                                                    <ExternalLink className="h-4 w-4" />
+                                                                </a>
+                                                            ) : <span className="text-gray-500 text-sm">No LinkedIn</span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        {isEditingProfile ? (
+                                                            <input
+                                                                type="text"
+                                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2"
+                                                                value={profile.social_links?.github || ''}
+                                                                onChange={(e) => setProfile({ ...profile, social_links: { ...profile.social_links, github: e.target.value } })}
+                                                                placeholder="GitHub URL"
+                                                            />
+                                                        ) : (
+                                                            profile.social_links?.github ? (
+                                                                <a href={profile.social_links.github} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center">
+                                                                    <span className="mr-2">GitHub</span>
+                                                                    <ExternalLink className="h-4 w-4" />
+                                                                </a>
+                                                            ) : <span className="text-gray-500 text-sm">No GitHub</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Education */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Education</label>
+                                                    {isEditingProfile && (
+                                                        <button onClick={handleAddEducation} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                                            + Add Education
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {profile.education?.map((edu, index) => (
+                                                        <div key={index} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                                                            {isEditingProfile ? (
+                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Degree"
+                                                                        className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                        value={edu.degree}
+                                                                        onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Institution"
+                                                                        className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                        value={edu.institution}
+                                                                        onChange={(e) => handleEducationChange(index, 'institution', e.target.value)}
+                                                                    />
+                                                                    <div className="flex space-x-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Year"
+                                                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                            value={edu.year}
+                                                                            onChange={(e) => handleEducationChange(index, 'year', e.target.value)}
+                                                                        />
+                                                                        <button onClick={() => handleRemoveEducation(index)} className="text-red-500 hover:text-red-700">
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900 dark:text-white">{edu.degree}</p>
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">{edu.institution} • {edu.year}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {!isEditingProfile && (!profile.education || profile.education.length === 0) && (
+                                                        <p className="text-sm text-gray-500 italic">No education details added.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Certifications */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Certifications</label>
+                                                    {isEditingProfile && (
+                                                        <button onClick={handleAddCertification} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                                            + Add Certification
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {profile.certifications?.map((cert, index) => (
+                                                        <div key={index} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                                                            {isEditingProfile ? (
+                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Certification Name"
+                                                                        className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                        value={cert.name}
+                                                                        onChange={(e) => handleCertificationChange(index, 'name', e.target.value)}
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Issuer"
+                                                                        className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                        value={cert.issuer}
+                                                                        onChange={(e) => handleCertificationChange(index, 'issuer', e.target.value)}
+                                                                    />
+                                                                    <div className="flex space-x-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Year"
+                                                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1"
+                                                                            value={cert.year}
+                                                                            onChange={(e) => handleCertificationChange(index, 'year', e.target.value)}
+                                                                        />
+                                                                        <button onClick={() => handleRemoveCertification(index)} className="text-red-500 hover:text-red-700">
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900 dark:text-white">{cert.name}</p>
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">{cert.issuer} • {cert.year}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {!isEditingProfile && (!profile.certifications || profile.certifications.length === 0) && (
+                                                        <p className="text-sm text-gray-500 italic">No certifications added.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Resume URL */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resume Link</label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
+                                                        value={profile.resume_url || ''}
+                                                        onChange={(e) => setProfile({ ...profile, resume_url: e.target.value })}
+                                                        placeholder="https://drive.google.com/..."
+                                                    />
+                                                ) : (
+                                                    profile.resume_url ? (
+                                                        <a href={profile.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center text-sm">
+                                                            <FileText className="h-4 w-4 mr-2" />
+                                                            View Resume
+                                                        </a>
+                                                    ) : <span className="text-gray-500 text-sm">No resume link provided.</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -930,53 +1621,106 @@ const DashboardUser = () => {
 
                     {
                         activeTab === 'study' && !activeModuleId && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Learning Modules</h3>
-                                    {studyModules.map(module => (
-                                        <div key={module.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center transition-all hover:shadow-md">
-                                            <div className="flex items-center space-x-3">
-                                                <div className={`p-2 rounded-lg ${completedTopics.includes(module.id) ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                                                    {completedTopics.includes(module.id) ? <CheckCircle className="h-6 w-6" /> : <BookOpen className="h-6 w-6" />}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900 dark:text-white">{module.title}</h4>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{module.duration}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => startModule(module.id)}
-                                                className={`px-3 py-1 text-xs font-medium rounded-full ${completedTopics.includes(module.id)
-                                                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                                                    : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                                            >
-                                                {completedTopics.includes(module.id) ? 'Review' : 'Start'}
-                                            </button>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 space-y-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('study.learningModules')}</h3>
+
+                                        {/* Level Filter */}
+                                        <div className="flex flex-wrap gap-2">
+                                            {['All', 'Beginner', 'Intermediate', 'Graduate'].map((level) => (
+                                                <button
+                                                    key={level}
+                                                    onClick={() => setStudyLevelFilter(level)}
+                                                    className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 ${studyLevelFilter === level
+                                                            ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500'
+                                                        }`}
+                                                >
+                                                    {t(`study.filter${level}`)}
+                                                </button>
+                                            ))}
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {studyModules
+                                            .filter(m => studyLevelFilter === 'All' || m.level === studyLevelFilter)
+                                            .map(module => (
+                                                <div key={module.id} className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between transition-all hover:shadow-xl hover:-translate-y-1 group">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div className={`p-3 rounded-2xl ${completedTopics.includes(module.id) ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                                                            {completedTopics.includes(module.id) ? <CheckCircle className="h-6 w-6" /> : <BookOpen className="h-6 w-6" />}
+                                                        </div>
+                                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${module.level === 'Beginner' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' :
+                                                                module.level === 'Intermediate' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' :
+                                                                    'bg-rose-50 text-rose-600 dark:bg-rose-900/20'
+                                                            }`}>
+                                                            {module.level}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{module.title}</h4>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                                                            <Calendar className="h-3 w-3 mr-1" />
+                                                            {module.duration}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => startModule(module.id)}
+                                                        className={`mt-6 w-full py-2.5 text-xs font-bold rounded-xl transition-all ${completedTopics.includes(module.id)
+                                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none'}`}
+                                                    >
+                                                        {completedTopics.includes(module.id) ? t('study.review') : t('study.start')}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                    </div>
+                                    {studyModules.filter(m => studyLevelFilter === 'All' || m.level === studyLevelFilter).length === 0 && (
+                                        <div className="py-20 text-center">
+                                            <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                                            <p className="text-gray-500 dark:text-gray-400">No modules found for this level.</p>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
-                                    <div className="flex items-center space-x-2 mb-4">
-                                        <Award className="h-6 w-6 text-yellow-500" />
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Progress</h3>
+                                <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit sticky top-6">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                                            <Award className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('study.yourProgress')}</h3>
                                     </div>
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         <div>
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="text-gray-600 dark:text-gray-400">Course Completion</span>
-                                                <span className="font-bold text-gray-900 dark:text-white">{Math.round((completedTopics.length / studyModules.length) * 100)}%</span>
+                                            <div className="flex justify-between text-sm mb-2">
+                                                <span className="text-gray-600 dark:text-gray-400 font-medium">{t('study.courseCompletion')}</span>
+                                                <span className="font-bold text-blue-600 dark:text-blue-400">{Math.round((completedTopics.length / studyModules.length) * 100)}%</span>
                                             </div>
-                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                            <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner">
                                                 <div
-                                                    className="bg-green-500 h-2.5 rounded-full transition-all duration-1000"
+                                                    className="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out shadow-lg"
                                                     style={{ width: `${(completedTopics.length / studyModules.length) * 100}%` }}
                                                 ></div>
                                             </div>
                                         </div>
-                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                                            <p className="text-sm text-blue-800 dark:text-blue-300 text-center">
-                                                Complete all modules to unlock your <span className="font-bold">Cyber Security Authenticator</span> certificate!
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-center">
+                                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{completedTopics.length}</p>
+                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Completed</p>
+                                            </div>
+                                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-center">
+                                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{studyModules.length - completedTopics.length}</p>
+                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Remaining</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-2xl shadow-lg shadow-blue-200 dark:shadow-none text-white overflow-hidden relative group">
+                                            <Award className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 group-hover:scale-110 transition-transform duration-500" />
+                                            <p className="text-sm leading-relaxed relative z-10">
+                                                Complete all modules to unlock your <span className="font-bold underline decoration-yellow-400 decoration-2 underline-offset-4">Cyber Security Authenticator</span> certificate!
                                             </p>
                                         </div>
                                     </div>
@@ -1001,15 +1745,18 @@ const DashboardUser = () => {
                                     {!quizState.isActive && !quizState.showResults && (
                                         <div className="space-y-8 max-w-4xl mx-auto">
                                             {/* Video Section */}
-                                            <div className="aspect-w-16 aspect-h-9 bg-black rounded-lg overflow-hidden shadow-md">
-                                                <iframe
-                                                    src={activeModule.videoUrl}
-                                                    title="Course Video"
-                                                    className="w-full h-[400px]"
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                ></iframe>
-                                            </div>
+                                            {activeModule.videoUrl && (
+                                                <div className="aspect-w-16 aspect-h-9 bg-black rounded-lg overflow-hidden shadow-md">
+                                                    <iframe
+                                                        key={`${activeModule.id}-${activeModule.videoUrl}`}
+                                                        src={`${activeModule.videoUrl}${activeModule.videoUrl.includes('?') ? '&' : '?'}enablejsapi=1&origin=${window.location.origin}`}
+                                                        title="Course Video"
+                                                        className="w-full h-[400px]"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                    ></iframe>
+                                                </div>
+                                            )}
 
                                             {/* Case Study */}
                                             <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-100 dark:border-blue-800">
@@ -1250,8 +1997,8 @@ const DashboardUser = () => {
                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Appearance</h3>
-                                            <p className="text-gray-500 dark:text-gray-400">Choose your preferred theme</p>
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.appearance')}</h3>
+                                            <p className="text-gray-500 dark:text-gray-400">{t('settings.appearance_desc')}</p>
                                         </div>
                                         <button
                                             onClick={toggleTheme}
@@ -1260,12 +2007,12 @@ const DashboardUser = () => {
                                             {theme === 'dark' ? (
                                                 <div className="flex items-center space-x-2">
                                                     <Sun className="h-5 w-5 text-yellow-500" />
-                                                    <span className="text-gray-900 dark:text-white font-medium">Light Mode</span>
+                                                    <span className="text-gray-900 dark:text-white font-medium">{t('settings.light_mode')}</span>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center space-x-2">
                                                     <Moon className="h-5 w-5 text-gray-700" />
-                                                    <span className="text-gray-900 dark:text-white font-medium">Dark Mode</span>
+                                                    <span className="text-gray-900 dark:text-white font-medium">{t('settings.dark_mode')}</span>
                                                 </div>
                                             )}
                                         </button>
@@ -1273,11 +2020,11 @@ const DashboardUser = () => {
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 mb-4">Regional Settings</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 mb-4">{t('settings.regional')}</h3>
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <span className="font-medium text-gray-900 dark:text-white">Language</span>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred language</p>
+                                            <span className="font-medium text-gray-900 dark:text-white">{t('settings.language')}</span>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.language_desc')}</p>
                                         </div>
                                         <select
                                             value={language}
@@ -1292,105 +2039,144 @@ const DashboardUser = () => {
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 pt-4">Privacy & Security</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2 pt-4">{t('settings.privacy')}</h3>
                                     <div className="space-y-4 pt-4">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <span className="font-medium text-gray-900 dark:text-white">Public Profile</span>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">Allow recruiters to find you.</p>
+                                                <span className="font-medium text-gray-900 dark:text-white">{t('settings.public_profile')}</span>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.public_profile_desc')}</p>
                                             </div>
                                             <input type="checkbox" className="h-4 w-4 text-blue-600 rounded" defaultChecked />
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <span className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</span>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {user?.is_two_factor_enabled ? "Your account is secured with 2FA." : "Add an extra layer of security."}
-                                                </p>
-                                            </div>
-                                            {user?.is_two_factor_enabled ? (
-                                                <button
-                                                    onClick={async () => {
-                                                        if (confirm("Are you sure you want to disable 2FA?")) {
-                                                            try {
-                                                                await disable2FA();
-                                                                alert("2FA disabled successfully.");
-                                                            } catch (err) {
-                                                                alert("Failed to disable 2FA");
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="text-sm text-red-600 dark:text-red-400 hover:underline"
-                                                >
-                                                    Disable
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={handleEnable2FA}
-                                                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                                                >
-                                                    Enable
-                                                </button>
-                                            )}
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>
                         )
                     }
-                </main >
-            </div >
 
-            {/* 2FA Setup Modal */}
-            {
-                showTwoFAModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full">
-                            <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Setup 2-Factor Authentication</h3>
-
-                            {twoFASecret && (
-                                <div className="flex flex-col items-center space-y-4">
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
-                                        Scan this QR code with your authenticator app (e.g., Google Authenticator).
-                                    </p>
-                                    <div className="bg-white p-2 rounded-lg">
-                                        <img src={twoFASecret.imageUrl} alt="2FA QR Code" className="w-48 h-48" />
-                                    </div>
-                                    <p className="text-xs font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                                        Secret: {twoFASecret.secret}
-                                    </p>
-
-                                    <div className="w-full pt-4">
-                                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Enter Verification Code</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. 123456"
-                                            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                                            value={twoFACode}
-                                            onChange={e => setTwoFACode(e.target.value)}
-                                        />
-                                    </div>
+                    {activeTab === 'network' && (
+                        <div className="max-w-5xl mx-auto">
+                            {/* Invitations Section */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                                    <Bell className="h-5 w-5 mr-2" />
+                                    {t('network.invitations')}
+                                </h3>
+                                <div className="space-y-3">
+                                    {connections.filter(conn => conn.status === 'pending' && conn.receiver_id === user?.id).length > 0 ? (
+                                        connections.filter(conn => conn.status === 'pending' && conn.receiver_id === user?.id).map(conn => (
+                                            <div key={conn.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold overflow-hidden">
+                                                        {conn.sender_photo ? (
+                                                            <img src={conn.sender_photo} alt={conn.sender_name} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            conn.sender_name.charAt(0)
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-white">{conn.sender_name}</p>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">{conn.sender_headline || 'User'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => updateConnectionStatus(conn.id, 'accepted')}
+                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                                                    >
+                                                        {t('network.accept')}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateConnectionStatus(conn.id, 'rejected')}
+                                                        className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 text-sm font-medium"
+                                                    >
+                                                        {t('network.ignore')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t('network.no_invitations')}</p>
+                                    )}
                                 </div>
-                            )}
+                            </div>
 
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button
-                                    onClick={() => setShowTwoFAModal(false)}
-                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={submit2FAVerification}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                    Verify & Enable
-                                </button>
+                            {/* Discover Section */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('network.discover')}</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {exploreUsers.length > 0 ? (
+                                        exploreUsers.map(u => (
+                                            <div key={u.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
+                                                <div className="flex flex-col items-center text-center">
+                                                    <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold mb-3 overflow-hidden">
+                                                        {u.photo_url ? (
+                                                            <img src={u.photo_url} alt={u.name} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            u.name.charAt(0)
+                                                        )}
+                                                    </div>
+                                                    <p className="font-medium text-gray-900 dark:text-white mb-1">{u.name}</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{u.headline || 'User'}</p>
+                                                    <button
+                                                        onClick={() => sendConnectionRequest(u.id)}
+                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium w-full"
+                                                    >
+                                                        {t('network.connect')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 dark:text-gray-400 text-center py-8 col-span-full">{t('network.no_suggestions')}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* My Network Section */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('network.my_network')}</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {connections.filter(conn => conn.status === 'accepted').length > 0 ? (
+                                        connections.filter(conn => conn.status === 'accepted').map(conn => {
+                                            const otherUser = conn.sender_id === user?.id
+                                                ? { id: conn.receiver_id, name: conn.receiver_name, headline: conn.receiver_headline, photo: conn.receiver_photo }
+                                                : { id: conn.sender_id, name: conn.sender_name, headline: conn.sender_headline, photo: conn.sender_photo };
+
+                                            return (
+                                                <div key={conn.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
+                                                    <div className="flex items-center space-x-3 mb-3">
+                                                        <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold overflow-hidden">
+                                                            {otherUser.photo ? (
+                                                                <img src={otherUser.photo} alt={otherUser.name} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                otherUser.name.charAt(0)
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="font-medium text-gray-900 dark:text-white">{otherUser.name}</p>
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400">{otherUser.headline || 'User'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => openChatWindow(otherUser)}
+                                                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                                                    >
+                                                        {t('network.message')}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-gray-500 dark:text-gray-400 text-center py-8 col-span-full">{t('network.no_connections')}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )
-            }
+                    )}
+                </main >
+            </div >
 
             {/* Application Modal */}
             {
@@ -1588,6 +2374,94 @@ const DashboardUser = () => {
                         >
                             Got it!
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Chat Modal */}
+            {openChat && chatUser && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md flex flex-col h-[500px] overflow-hidden">
+                        {/* Header */}
+                        <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-blue-600 text-white">
+                            <div className="flex items-center space-x-3">
+                                <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center font-bold overflow-hidden">
+                                    {chatUser.photo ? (
+                                        <img src={chatUser.photo} alt={chatUser.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        chatUser.name.charAt(0)
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-medium">{chatUser.name}</p>
+                                    <p className="text-xs text-blue-100">{chatUser.headline || 'User'}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setOpenChat(false)}
+                                className="p-1 hover:bg-white/20 rounded transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
+                            {messages.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+                                    <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <User className="h-6 w-6 text-blue-500" />
+                                    </div>
+                                    <p className="text-sm">{t('chat.empty_state')}</p>
+                                </div>
+                            ) : (
+                                messages.map((msg: any) => {
+                                    const isMe = msg.sender_id === user?.id;
+                                    return (
+                                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm ${isMe
+                                                ? 'bg-blue-600 text-white rounded-br-sm'
+                                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-sm border border-gray-100 dark:border-gray-700'
+                                                }`}>
+                                                <p>{msg.content}</p>
+                                                <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Input */}
+                        <div className="p-3 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleSendMessage();
+                                }}
+                                className="flex space-x-2 items-center"
+                            >
+                                <input
+                                    type="text"
+                                    value={messageInput}
+                                    onChange={(e) => setMessageInput(e.target.value)}
+                                    placeholder={t('chat.placeholder')}
+                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!messageInput.trim()}
+                                    className="bg-blue-600 text-white p-2.5 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-105 active:scale-95 shadow-md"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}
