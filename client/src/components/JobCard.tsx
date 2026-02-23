@@ -8,6 +8,7 @@ interface Job {
     location: string;
     salary_range: string;
     experience_level: string;
+    job_type?: string;
     description: string;
     requirements: string;
     created_at: string;
@@ -44,7 +45,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, isApplied = false }) =>
                 </div>
                 <div className="flex items-center">
                     <Briefcase className="h-4 w-4 mr-2" />
-                    Full-time
+                    {job.job_type || 'Full Time'}
                 </div>
                 <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2" />

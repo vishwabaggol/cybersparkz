@@ -6,6 +6,7 @@ const db = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
 
 function initDb() {
   console.log('Initializing database...');
@@ -26,6 +27,9 @@ function initDb() {
       company_name TEXT NOT NULL,
       company_address TEXT,
       designation TEXT,
+      company_website TEXT,
+      company_description TEXT,
+      logo_url TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -35,6 +39,10 @@ function initDb() {
       skills TEXT,
       experience_level TEXT,
       photo_url TEXT,
+      social_links TEXT,
+      education TEXT,
+      certifications TEXT,
+      resume_url TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -47,6 +55,7 @@ function initDb() {
       location TEXT,
       salary_range TEXT,
       experience_level TEXT,
+      job_type TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -59,6 +68,28 @@ function initDb() {
       applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      receiver_id INTEGER NOT NULL,
+      status TEXT CHECK(status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(sender_id, receiver_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      receiver_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      read_status BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
 

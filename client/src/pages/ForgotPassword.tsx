@@ -60,7 +60,7 @@ const ForgotPassword = () => {
             } else {
                 setError(data.error || 'Failed to send OTP');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         } finally {
             setIsLoading(false);
@@ -95,7 +95,7 @@ const ForgotPassword = () => {
             } else {
                 setError(data.error || 'Failed to resend OTP');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         } finally {
             setIsLoading(false);
@@ -123,7 +123,7 @@ const ForgotPassword = () => {
             } else {
                 setError(data.error || 'Invalid OTP');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         } finally {
             setIsLoading(false);
@@ -158,7 +158,7 @@ const ForgotPassword = () => {
             } else {
                 setError(data.error || 'Failed to reset password');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         } finally {
             setIsLoading(false);

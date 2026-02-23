@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
 const multer = require('multer');
@@ -220,15 +220,20 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log('[LOGIN RAW BODY]', JSON.stringify(req.body));
 
     try {
-        const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+        console.log(`[LOGIN ATTEMPT] Username/Email: ${username}, Password: ${password}`);
+        const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)').get(username, username);
         if (!user) {
+            console.log('[LOGIN FAIL] User not found');
             return res.status(400).json({ error: 'Invalid credentials' });
         }
+        console.log(`[LOGIN FOUND] User: ${user.username}, Role: ${user.role}, Hash: ${user.password.substring(0, 10)}...`);
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
+            console.log('[LOGIN FAIL] Password mismatch');
             return res.status(400).json({ error: 'Invalid credentials' });
         }
 
@@ -346,10 +351,14 @@ app.post('/api/auth/request-otp-reset', async (req, res) => {
             return res.status(400).json({ error: 'User not found with that email/username' });
         }
 
-        // Generate 6-digit OTP
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(`[DEBUG] Generated OTP for ${identifier}: ${otp}`);
+        // Generate 6-character complex OTP
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+        let otp = '';
+        for (let i = 0; i < 6; i++) {
+            otp += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        console.log(`[DEBUG] Generated complex OTP for ${identifier}: ${otp}`);
+
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
 
         // Store OTP (always link to email for internal verification)
@@ -501,22 +510,33 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 });
 
 app.put('/api/users/profile', authenticateToken, (req, res) => {
-    const { bio, skills, experience_level, photo_url, name } = req.body;
+    const { bio, skills, experience_level, photo_url, name, social_links, education, certifications, resume_url } = req.body;
 
     try {
         if (req.user.role === 'user') {
             db.prepare(`
-                INSERT INTO profiles (user_id, bio, skills, experience_level, photo_url)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO profiles (user_id, bio, skills, experience_level, photo_url, social_links, education, certifications, resume_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                 bio = excluded.bio,
                 skills = excluded.skills,
                 experience_level = excluded.experience_level,
-                photo_url = excluded.photo_url
-            `).run(req.user.id, bio, skills, experience_level, photo_url);
-        } else if (req.user.role === 'recruiter') {
-            // Recruiters might have different fields, but if they share some, we update them here or ignore
-            // For now, only job seekers have the 'profiles' table with these fields
+                photo_url = excluded.photo_url,
+                social_links = excluded.social_links,
+                education = excluded.education,
+                certifications = excluded.certifications,
+                resume_url = excluded.resume_url
+            `).run(
+                req.user.id,
+                bio,
+                skills,
+                experience_level,
+                photo_url,
+                social_links ? JSON.stringify(social_links) : null,
+                education ? JSON.stringify(education) : null,
+                certifications ? JSON.stringify(certifications) : null,
+                resume_url
+            );
         }
 
         if (name) {
@@ -533,14 +553,14 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
 app.put('/api/recruiters/profile', authenticateToken, (req, res) => {
     if (req.user.role !== 'recruiter') return res.sendStatus(403);
 
-    const { company_name, company_address, designation, name, photo_url } = req.body;
+    const { company_name, company_address, designation, name, photo_url, company_website, company_description, logo_url } = req.body;
 
     try {
         db.prepare(`
-            UPDATE recruiters 
-            SET company_name = ?, company_address = ?, designation = ?, photo_url = ?
+            UPDATE recruiters
+            SET company_name = ?, company_address = ?, designation = ?, photo_url = ?, company_website = ?, company_description = ?, logo_url = ?
             WHERE user_id = ?
-        `).run(company_name, company_address, designation, photo_url, req.user.id);
+        `).run(company_name, company_address, designation, photo_url, company_website, company_description, logo_url, req.user.id);
 
         if (name) {
             db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id);
@@ -585,14 +605,14 @@ app.post('/api/jobs', authenticateToken, (req, res) => {
         return res.status(403).json({ error: 'Only recruiters can post jobs' });
     }
 
-    const { title, description, requirements, location, salary_range, experience_level } = req.body;
+    const { title, description, requirements, location, salary_range, experience_level, job_type } = req.body;
 
     try {
         const insertJob = db.prepare(`
-      INSERT INTO jobs (recruiter_id, title, description, requirements, location, salary_range, experience_level)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-        const result = insertJob.run(req.user.id, title, description, requirements, location, salary_range, experience_level);
+        INSERT INTO jobs (recruiter_id, title, description, requirements, location, salary_range, experience_level, job_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const result = insertJob.run(req.user.id, title, description, requirements, location, salary_range, experience_level, job_type);
         res.json({ id: result.lastInsertRowid, ...req.body });
     } catch (error) {
         console.error(error);
@@ -744,6 +764,158 @@ app.post('/api/applications/:id/schedule', authenticateToken, async (req, res) =
     } catch (error) {
         console.error('Error scheduling interview:', error);
         res.status(500).json({ error: 'Failed to schedule interview' });
+    }
+});
+
+// --- Connection Routes ---
+
+// Get all connections and requests
+app.get('/api/connections', authenticateToken, (req, res) => {
+    try {
+        const connections = db.prepare(`
+            SELECT c.*, 
+                   sender.name as sender_name, sender.email as sender_email,
+                   receiver.name as receiver_name, receiver.email as receiver_email,
+                   sp.photo_url as sender_photo, rp.photo_url as receiver_photo,
+                   sp.bio as sender_headline, rp.bio as receiver_headline
+            FROM connections c
+            JOIN users sender ON c.sender_id = sender.id
+            JOIN users receiver ON c.receiver_id = receiver.id
+            LEFT JOIN profiles sp ON sender.id = sp.user_id
+            LEFT JOIN profiles rp ON receiver.id = rp.user_id
+            WHERE c.sender_id = ? OR c.receiver_id = ?
+            ORDER BY c.created_at DESC
+        `).all(req.user.id, req.user.id);
+        res.json(connections);
+    } catch (error) {
+        console.error('Error fetching connections:', error);
+        res.status(500).json({ error: 'Failed to fetch connections' });
+    }
+});
+
+// Explore users (exclude self and existing connections/requests)
+app.get('/api/users/explore', authenticateToken, (req, res) => {
+    try {
+        // Get IDs of users already connected or with pending requests
+        const connectedIds = db.prepare(`
+            SELECT sender_id FROM connections WHERE receiver_id = ?
+            UNION
+            SELECT receiver_id FROM connections WHERE sender_id = ?
+        `).all(req.user.id, req.user.id).map(c => c.sender_id);
+
+        connectedIds.push(req.user.id); // Exclude self
+
+        const users = db.prepare(`
+            SELECT u.id, u.name, p.photo_url, p.experience_level, p.skills
+            FROM users u
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE u.role = 'user' AND u.id NOT IN (${connectedIds.join(',') || 0})
+            LIMIT 20
+        `).all();
+
+        res.json(users);
+    } catch (error) {
+        console.error('Error exploring users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// Send connection request
+app.post('/api/connections/send', authenticateToken, (req, res) => {
+    const { receiver_id } = req.body;
+    try {
+        const existing = db.prepare('SELECT * FROM connections WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)').get(req.user.id, receiver_id, receiver_id, req.user.id);
+        if (existing) {
+            return res.status(400).json({ error: 'Connection already exists or pending' });
+        }
+
+        const info = db.prepare('INSERT INTO connections (sender_id, receiver_id) VALUES (?, ?)').run(req.user.id, receiver_id);
+        res.json({ success: true, id: info.lastInsertRowid });
+    } catch (error) {
+        console.error('Error sending connection request:', error);
+        res.status(500).json({ error: 'Failed to send request' });
+    }
+});
+
+// Respond to connection request
+app.put('/api/connections/:id/status', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body; // 'accepted' or 'rejected'
+
+    if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    try {
+        const connection = db.prepare('SELECT * FROM connections WHERE id = ?').get(id);
+        if (!connection) return res.status(404).json({ error: 'Connection not found' });
+
+        // Only receiver can accept/reject
+        if (connection.receiver_id !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        if (status === 'rejected') {
+            db.prepare('DELETE FROM connections WHERE id = ?').run(id);
+        } else {
+            db.prepare('UPDATE connections SET status = ? WHERE id = ?').run(status, id);
+        }
+
+        res.json({ success: true, message: `Connection ${status}` });
+    } catch (error) {
+        console.error('Error updating connection status:', error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
+// --- Message Routes ---
+
+// Send a message
+app.post('/api/messages', authenticateToken, (req, res) => {
+    const { receiver_id, content } = req.body;
+
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    try {
+        // Verify connection exists (optional but good practice)
+        const connection = db.prepare(`
+            SELECT * FROM connections 
+            WHERE (sender_id = ? AND receiver_id = ? AND status = 'accepted')
+               OR (sender_id = ? AND receiver_id = ? AND status = 'accepted')
+        `).get(req.user.id, receiver_id, receiver_id, req.user.id);
+
+        if (!connection) {
+            return res.status(403).json({ error: 'You can only message connected users' });
+        }
+
+        const info = db.prepare(`
+            INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)
+        `).run(req.user.id, receiver_id, content);
+
+        res.json({ success: true, id: info.lastInsertRowid, timestamp: new Date() });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+
+// Get conversation with a specific user
+app.get('/api/messages/:userId', authenticateToken, (req, res) => {
+    const otherUserId = req.params.userId;
+    try {
+        const messages = db.prepare(`
+            SELECT * FROM messages 
+            WHERE (sender_id = ? AND receiver_id = ?) 
+               OR (sender_id = ? AND receiver_id = ?)
+            ORDER BY created_at ASC
+        `).all(req.user.id, otherUserId, otherUserId, req.user.id);
+
+        res.json(messages);
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
 

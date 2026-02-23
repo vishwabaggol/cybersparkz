@@ -24,7 +24,7 @@ const Login = () => {
     const navigate = useNavigate();
 
     const generateCaptcha = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
         let result = '';
         for (let i = 0; i < 6; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -54,7 +54,7 @@ const Login = () => {
         }
 
         // Normal login flow
-        if (captchaInput.toUpperCase() !== captcha) {
+        if (captchaInput !== captcha) {
             setCaptchaError(true);
             generateCaptcha();
             setCaptchaInput('');
@@ -92,7 +92,7 @@ const Login = () => {
             } else {
                 setError(data.error || 'Login failed');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         }
     };
@@ -161,13 +161,13 @@ const Login = () => {
                             </div>
 
                             <div>
-                                <label className="block text-gray-700 text-sm font-medium mb-1">Username</label>
+                                <label className="block text-gray-700 text-sm font-medium mb-1">Username or Email</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                                     <input
                                         type="text"
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                        placeholder="Username"
+                                        placeholder="Username or Email"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         required

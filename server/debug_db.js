@@ -1,11 +1,13 @@
 const db = require('./db');
 
-const user = db.prepare("SELECT * FROM users WHERE name LIKE '%Divya%'").get();
+try {
+    console.log('--- Inspecting Jobs Table ---');
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(3);
+    console.log('Job ID 3:', job);
 
-if (user) {
-    console.log('User found:', user);
-    const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(user.id);
-    console.log('Profile found:', profile);
-} else {
-    console.log('User not found');
+    const columns = db.pragma('table_info(jobs)');
+    console.log('Jobs Table Columns:', columns.map(c => c.name));
+
+} catch (e) {
+    console.error(e);
 }

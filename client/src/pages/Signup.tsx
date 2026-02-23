@@ -89,7 +89,7 @@ const Signup = () => {
             } else {
                 setError(data.error || 'Signup failed');
             }
-        } catch (err) {
+        } catch {
             setError('Network error. Please try again.');
         }
     };

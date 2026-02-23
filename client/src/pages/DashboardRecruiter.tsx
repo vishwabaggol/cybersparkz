@@ -49,7 +49,10 @@ const DashboardRecruiter = () => {
         company_address: '',
         designation: '',
         name: '',
-        photo_url: ''
+        photo_url: '',
+        company_website: '',
+        company_description: '',
+        logo_url: ''
     });
     const [isEditing, setIsEditing] = useState(false);
 
@@ -60,7 +63,10 @@ const DashboardRecruiter = () => {
                 company_address: user.company_address || '',
                 designation: user.designation || '',
                 name: user.name || '',
-                photo_url: user.photo_url || ''
+                photo_url: user.photo_url || '',
+                company_website: user.company_website || '',
+                company_description: user.company_description || '',
+                logo_url: user.logo_url || ''
             });
         }
     }, [user]);
@@ -90,7 +96,8 @@ const DashboardRecruiter = () => {
         requirements: '',
         location: '',
         salary_range: '',
-        experience_level: 'Fresher'
+        experience_level: 'Fresher',
+        job_type: 'Full Time'
     });
 
     useEffect(() => {
@@ -131,7 +138,8 @@ const DashboardRecruiter = () => {
                     requirements: '',
                     location: '',
                     salary_range: '',
-                    experience_level: 'Fresher'
+                    experience_level: 'Fresher',
+                    job_type: 'Full Time'
                 });
             } else {
                 alert('Failed to post job');
@@ -190,7 +198,10 @@ const DashboardRecruiter = () => {
                 company_address: user.company_address || '',
                 designation: user.designation || '',
                 name: user.name || '',
-                photo_url: user.photo_url || ''
+                photo_url: user.photo_url || '',
+                company_website: user.company_website || '',
+                company_description: user.company_description || '',
+                logo_url: user.logo_url || ''
             });
         }
     };
@@ -369,8 +380,19 @@ const DashboardRecruiter = () => {
                                             <option>Fresher</option>
                                             <option>1 year</option>
                                             <option>2/3 year</option>
-                                            <option>4 year</option>
                                             <option>5+ year</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                                        <select
+                                            className="w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none transition-colors"
+                                            value={jobForm.job_type}
+                                            onChange={(e) => setJobForm({ ...jobForm, job_type: e.target.value })}
+                                        >
+                                            <option>Full Time</option>
+                                            <option>Part Time</option>
+                                            <option>Shift Based</option>
                                         </select>
                                     </div>
                                     <div className="md:col-span-2">
@@ -521,8 +543,8 @@ const DashboardRecruiter = () => {
                                 <div className="flex flex-col items-center space-y-4">
                                     <div className="relative group">
                                         <div className="h-32 w-32 rounded-full bg-purple-100 dark:bg-purple-900 border-4 border-white dark:border-gray-700 shadow-md flex items-center justify-center overflow-hidden">
-                                            {profileForm.photo_url ? (
-                                                <img src={profileForm.photo_url} alt="Profile" className="h-full w-full object-cover" />
+                                            {profileForm.logo_url ? (
+                                                <img src={profileForm.logo_url} alt="Profile" className="h-full w-full object-cover" />
                                             ) : (
                                                 <User className="h-16 w-16 text-purple-500 dark:text-purple-300" />
                                             )}
@@ -537,9 +559,9 @@ const DashboardRecruiter = () => {
                                                 </label>
 
                                                 {/* Delete Button */}
-                                                {profileForm.photo_url && (
+                                                {profileForm.logo_url && (
                                                     <button
-                                                        onClick={() => setProfileForm({ ...profileForm, photo_url: '' })}
+                                                        onClick={() => setProfileForm({ ...profileForm, logo_url: '' })}
                                                         className="absolute -top-1 -right-1 bg-red-500 text-white p-1.5 rounded-full shadow-sm hover:bg-red-600 transition-colors"
                                                         title="Remove Photo"
                                                     >
@@ -591,49 +613,48 @@ const DashboardRecruiter = () => {
                                             )}
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Recruiter Name</label>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
-                                                        value={profileForm.name}
-                                                        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                                                    />
-                                                ) : (
-                                                    <p className="text-base text-gray-900 dark:text-white">{user?.name}</p>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Designation</label>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
-                                                        value={profileForm.designation}
-                                                        onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })}
-                                                    />
-                                                ) : (
-                                                    <p className="text-base text-gray-900 dark:text-white">{user?.designation}</p>
-                                                )}
-                                            </div>
-                                        </div>
-
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Company Address</label>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Company Description</label>
                                             {isEditing ? (
                                                 <textarea
-                                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                                                    rows={2}
-                                                    value={profileForm.company_address}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, company_address: e.target.value })}
-                                                    placeholder="Company address..."
+                                                    rows={3}
+                                                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                    value={profileForm.company_description}
+                                                    onChange={(e) => setProfileForm({ ...profileForm, company_description: e.target.value })}
+                                                    placeholder="Describe your company..."
                                                 />
                                             ) : (
-                                                <p className="mt-1 text-gray-600 dark:text-gray-300">{profileForm.company_address || "No address added yet."}</p>
+                                                <p className="text-base text-gray-900 dark:text-white">{user?.name}</p>
                                             )}
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Designation</label>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white px-4 py-2"
+                                                    value={profileForm.designation}
+                                                    onChange={(e) => setProfileForm({ ...profileForm, designation: e.target.value })}
+                                                />
+                                            ) : (
+                                                <p className="text-base text-gray-900 dark:text-white">{user?.designation}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Company Address</label>
+                                        {isEditing ? (
+                                            <textarea
+                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                                                rows={2}
+                                                value={profileForm.company_address}
+                                                onChange={(e) => setProfileForm({ ...profileForm, company_address: e.target.value })}
+                                                placeholder="Company address..."
+                                            />
+                                        ) : (
+                                            <p className="mt-1 text-gray-600 dark:text-gray-300">{profileForm.company_address || "No address added yet."}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -789,8 +810,8 @@ const DashboardRecruiter = () => {
                         </div>
                     )}
                 </main>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
