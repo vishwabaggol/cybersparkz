@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LogOut, User, Users, BookOpen, Briefcase, Settings, Search, Award, CheckCircle, FileText, Calendar, Upload, Menu, X, Sun, Moon, Bell, ExternalLink, Trash2 } from 'lucide-react';
 
-
 import JobCard from '../components/JobCard';
+import ResumeBuilder from '../components/ResumeBuilder';
 import { getStudyModules } from '../data/studyModules';
 import { useNavigate } from 'react-router-dom';
 import landingLogo from '../assets/landing-logo.jpg';
@@ -18,6 +18,7 @@ const translations: any = {
             study: 'Study Corner',
             network: 'My Network',
             settings: 'Settings',
+            resume: 'Resume Builder',
             signout: 'Sign Out'
         },
         headers: {
@@ -120,6 +121,7 @@ const translations: any = {
             study: 'अध्ययन कोना',
             network: 'मेरा नेटवर्क',
             settings: 'सेटिंग्स',
+            resume: 'रिज्यूमे बनाएं',
             signout: 'साइन आउट'
         },
         headers: {
@@ -222,6 +224,7 @@ const translations: any = {
             study: 'ಅಧ್ಯಯನ ಮೂಲೆ',
             network: 'ನನ್ನ ನೆಟ್‌ವರ್ಕ್',
             settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+            resume: 'ರೆಸ್ಯೂಮ್ ರಚನೆಕಾರ',
             signout: 'ಸೈನ್ ಔಟ್'
         },
         headers: {
@@ -1157,6 +1160,15 @@ const DashboardUser = () => {
                         <span>{t('nav.study')}</span>
                     </button>
                     <button
+                        onClick={() => { setActiveTab('resume'); setActiveModuleId(null); }}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'resume'
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                    >
+                        <FileText className="h-5 w-5" />
+                        <span>{t('nav.resume')}</span>
+                    </button>
+                    <button
                         onClick={() => { setActiveTab('settings'); setActiveModuleId(null); }}
                         className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings'
                             ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
@@ -1633,8 +1645,8 @@ const DashboardUser = () => {
                                                     key={level}
                                                     onClick={() => setStudyLevelFilter(level)}
                                                     className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all duration-200 ${studyLevelFilter === level
-                                                            ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                                                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500'
+                                                        ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                                                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500'
                                                         }`}
                                                 >
                                                     {t(`study.filter${level}`)}
@@ -1653,8 +1665,8 @@ const DashboardUser = () => {
                                                             {completedTopics.includes(module.id) ? <CheckCircle className="h-6 w-6" /> : <BookOpen className="h-6 w-6" />}
                                                         </div>
                                                         <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${module.level === 'Beginner' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' :
-                                                                module.level === 'Intermediate' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' :
-                                                                    'bg-rose-50 text-rose-600 dark:bg-rose-900/20'
+                                                            module.level === 'Intermediate' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' :
+                                                                'bg-rose-50 text-rose-600 dark:bg-rose-900/20'
                                                             }`}>
                                                             {module.level}
                                                         </span>
@@ -2334,6 +2346,12 @@ const DashboardUser = () => {
                             </div>
                         </div>
                     </div>
+                )
+            }
+
+            {
+                activeTab === 'resume' && (
+                    <ResumeBuilder initialData={profile} />
                 )
             }
 
