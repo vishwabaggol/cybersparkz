@@ -510,13 +510,13 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 });
 
 app.put('/api/users/profile', authenticateToken, (req, res) => {
-    const { bio, skills, experience_level, photo_url, name, social_links, education, certifications, resume_url } = req.body;
+    const { bio, skills, experience_level, photo_url, name, social_links, education, certifications, resume_url, ctf_score, lab_completions } = req.body;
 
     try {
         if (req.user.role === 'user') {
             db.prepare(`
-                INSERT INTO profiles (user_id, bio, skills, experience_level, photo_url, social_links, education, certifications, resume_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO profiles (user_id, bio, skills, experience_level, photo_url, social_links, education, certifications, resume_url, ctf_score, lab_completions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                 bio = excluded.bio,
                 skills = excluded.skills,
@@ -525,7 +525,9 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
                 social_links = excluded.social_links,
                 education = excluded.education,
                 certifications = excluded.certifications,
-                resume_url = excluded.resume_url
+                resume_url = excluded.resume_url,
+                ctf_score = excluded.ctf_score,
+                lab_completions = excluded.lab_completions
             `).run(
                 req.user.id,
                 bio,
@@ -535,7 +537,9 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
                 social_links ? JSON.stringify(social_links) : null,
                 education ? JSON.stringify(education) : null,
                 certifications ? JSON.stringify(certifications) : null,
-                resume_url
+                resume_url,
+                ctf_score || 0,
+                lab_completions || 0
             );
         }
 
@@ -547,6 +551,41 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
     } catch (error) {
         console.error("Error updating profile:", error);
         res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
+app.post('/api/users/upgrade', authenticateToken, (req, res) => {
+    if (req.user.role !== 'user') return res.status(403).json({ error: 'Only users can upgrade memberships' });
+
+    const { tier } = req.body;
+    const validTiers = ['free', 'standard', 'platinum'];
+    
+    if (!validTiers.includes(tier)) {
+        return res.status(400).json({ error: 'Invalid membership tier' });
+    }
+
+    let expiryDate = null;
+    const now = new Date();
+
+    if (tier === 'standard') {
+        now.setMonth(now.getMonth() + 1);
+        expiryDate = now.toISOString();
+    } else if (tier === 'platinum') {
+        now.setFullYear(now.getFullYear() + 1);
+        expiryDate = now.toISOString();
+    }
+
+    try {
+        db.prepare(`
+            UPDATE profiles 
+            SET membership_tier = ?, membership_expiry = ? 
+            WHERE user_id = ?
+        `).run(tier, expiryDate, req.user.id);
+        
+        res.json({ success: true, membership_tier: tier, membership_expiry: expiryDate, message: 'Membership updated successfully' });
+    } catch (error) {
+        console.error("Error upgrading membership:", error);
+        res.status(500).json({ error: 'Failed to upgrade membership' });
     }
 });
 
@@ -605,14 +644,14 @@ app.post('/api/jobs', authenticateToken, (req, res) => {
         return res.status(403).json({ error: 'Only recruiters can post jobs' });
     }
 
-    const { title, description, requirements, location, salary_range, experience_level, job_type } = req.body;
+    const { title, description, requirements, location, salary_range, experience_level, job_type, challenge_description, challenge_answer } = req.body;
 
     try {
         const insertJob = db.prepare(`
-        INSERT INTO jobs (recruiter_id, title, description, requirements, location, salary_range, experience_level, job_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO jobs (recruiter_id, title, description, requirements, location, salary_range, experience_level, job_type, challenge_description, challenge_answer)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertJob.run(req.user.id, title, description, requirements, location, salary_range, experience_level, job_type);
+        const result = insertJob.run(req.user.id, title, description, requirements, location, salary_range, experience_level, job_type, challenge_description, challenge_answer);
         res.json({ id: result.lastInsertRowid, ...req.body });
     } catch (error) {
         console.error(error);
@@ -634,7 +673,7 @@ app.post('/api/apply', authenticateToken, upload.single('resume'), (req, res) =>
         return res.status(400).json({ error: 'Resume (PDF) is required' });
     }
 
-    const { job_id, email, contact_number, alt_contact_number, full_name } = req.body;
+    const { job_id, email, contact_number, alt_contact_number, full_name, challenge_response } = req.body;
     const resume_url = `/uploads/${req.file.filename}`;
 
     try {
@@ -643,11 +682,19 @@ app.post('/api/apply', authenticateToken, upload.single('resume'), (req, res) =>
             return res.status(400).json({ error: 'Already applied to this job' });
         }
 
+        let status = 'applied';
+        const jobInfo = db.prepare('SELECT challenge_answer FROM jobs WHERE id = ?').get(job_id);
+        if (jobInfo && jobInfo.challenge_answer && challenge_response) {
+            if (jobInfo.challenge_answer.trim().toLowerCase() === challenge_response.trim().toLowerCase()) {
+                status = 'shortlisted';
+            }
+        }
+
         const insertApp = db.prepare(`
-            INSERT INTO applications (job_id, user_id, email, contact_number, alt_contact_number, resume_url, full_name) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO applications (job_id, user_id, email, contact_number, alt_contact_number, resume_url, full_name, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        insertApp.run(job_id, req.user.id, email, contact_number, alt_contact_number, resume_url, full_name);
+        insertApp.run(job_id, req.user.id, email, contact_number, alt_contact_number, resume_url, full_name, status);
 
         res.json({ success: true, message: 'Applied successfully' });
     } catch (error) {
@@ -693,10 +740,12 @@ app.get('/api/recruiter/applications', authenticateToken, (req, res) => {
     const applications = db.prepare(`
         SELECT a.id, a.status, a.applied_at, a.resume_url, a.contact_number, a.alt_contact_number, a.email, a.full_name,
                u.name as applicant_name, u.email as applicant_email,
-               j.title as job_title
+               j.title as job_title,
+               p.ctf_score, p.lab_completions, p.skills
         FROM applications a
         JOIN jobs j ON a.job_id = j.id
         JOIN users u ON a.user_id = u.id
+        LEFT JOIN profiles p ON u.id = p.user_id
         WHERE j.recruiter_id = ?
     `).all(req.user.id);
 
@@ -914,8 +963,48 @@ app.get('/api/messages/:userId', authenticateToken, (req, res) => {
 
         res.json(messages);
     } catch (error) {
-        console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+});
+
+// --- Community Feed Routes ---
+
+// Get all posts for the global feed
+app.get('/api/posts', (req, res) => {
+    try {
+        const posts = db.prepare(`
+            SELECT p.*, u.name as author_name, u.role as author_role, pr.photo_url as author_photo 
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN profiles pr ON u.id = pr.user_id
+            ORDER BY p.created_at DESC
+            LIMIT 50
+        `).all();
+        res.json(posts);
+    } catch (error) {
+        console.error('Error fetching posts:', error);
+        res.status(500).json({ error: 'Failed to fetch posts' });
+    }
+});
+
+// Create a new post
+app.post('/api/posts', authenticateToken, (req, res) => {
+    const { type, content, url } = req.body;
+    
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Post content is required' });
+    }
+
+    try {
+        const info = db.prepare(`
+            INSERT INTO posts (user_id, type, content, url)
+            VALUES (?, ?, ?, ?)
+        `).run(req.user.id, type || 'standard', content, url || null);
+        
+        res.json({ success: true, id: info.lastInsertRowid });
+    } catch (error) {
+        console.error('Error creating post:', error);
+        res.status(500).json({ error: 'Failed to create post' });
     }
 });
 
