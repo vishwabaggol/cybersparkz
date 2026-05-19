@@ -990,11 +990,11 @@ const DashboardUser = () => {
             // Instructor Signature Line
             const instructorX = width / 2 + 60;
             doc.line(instructorX - 25, bottomY, instructorX + 25, bottomY);
-            doc.text("Cybersparkz", instructorX, bottomY + 6, { align: "center" });
+            doc.text("CyberSphere", instructorX, bottomY + 6, { align: "center" });
             doc.text("Instructor", instructorX, bottomY - 5, { align: "center" });
 
             // Save
-            doc.save(`Cybersparkz_Certificate_${user?.name || 'User'}.pdf`);
+            doc.save(`CyberSphere_Certificate_${user?.name || 'User'}.pdf`);
 
         } catch (err: any) {
             console.error("Error generating PDF:", err);
@@ -1113,7 +1113,7 @@ const DashboardUser = () => {
                             <img src={landingLogo} alt="Logo" className="h-full w-full object-cover" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Cybersparkz</h1>
+                            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">CyberSphere</h1>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Job Seeker Portal</p>
                         </div>
                     </div>
@@ -1963,7 +1963,7 @@ const DashboardUser = () => {
                                                                 <p>{new Date().toLocaleDateString()}</p>
                                                             </div>
                                                             <div>
-                                                                <p style={{ paddingTop: '0.25rem', width: '8rem', borderTop: '1px solid #9ca3af' }}>Cybersparkz</p>
+                                                                <p style={{ paddingTop: '0.25rem', width: '8rem', borderTop: '1px solid #9ca3af' }}>CyberSphere</p>
                                                                 <p>Instructor</p>
                                                             </div>
                                                         </div>

@@ -18,7 +18,7 @@ const LandingPage = () => {
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        const characters = '0101010101CYBERSPARKZABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const characters = '0101010101CYBERSPHEREABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         const fontSize = 12;
         const columns = Math.ceil(width / fontSize);
         const drops: number[] = new Array(columns).fill(1);
@@ -89,7 +89,7 @@ const LandingPage = () => {
                             <div className="absolute inset-0 bg-blue-400 blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-500 rounded-full animate-pulse-slow"></div>
                             <img
                                 src={landingLogo}
-                                alt="Cybersparkz Logo"
+                                alt="CyberSphere Logo"
                                 className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full relative z-10 drop-shadow-xl ring-2 ring-gray-300 group-hover:scale-105 transition-transform duration-300"
                             />
                         </div>
@@ -98,7 +98,7 @@ const LandingPage = () => {
                     {/* Heading */}
                     <div className="mb-8 space-y-2 text-center">
                         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 animate-fade-in-down" style={{ animationDelay: '0.2s', opacity: 0, animationFillMode: 'forwards' }}>
-                            Welcome to <span className="inline-block text-gray-700 animate-tracking-expand" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>Cybersparkz</span>
+                            Welcome to <span className="inline-block text-gray-700 animate-tracking-expand" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>CyberSphere</span>
                         </h1>
 
                         {/* Powered By Section */}
@@ -157,7 +157,7 @@ const LandingPage = () => {
 
                 {/* Footer */}
                 <div className="mt-8 text-center text-gray-500 text-xs">
-                    <p>© {new Date().getFullYear()} Cybersparkz Inc. All rights reserved.</p>
+                    <p>© {new Date().getFullYear()} CyberSphere Inc. All rights reserved.</p>
                 </div>
             </div>
         </div>
